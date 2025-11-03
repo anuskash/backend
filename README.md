@@ -117,4 +117,75 @@ spring.jpa.properties.hibernate.format_sql=true
 
 ---
 
-You are now ready to use SQL Server 2022 with your Spring Boot app and connect via VS Code!
+## 👤 5. Admin Setup and User Management
+
+### Create Initial Admin User
+
+Use the admin controller to create the first admin user. Make a POST request to:
+
+```sh
+curl -X POST "http://localhost:8080/admin/create-admin" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "appUser": {
+      "email": "admin@marketplace.com",
+      "password": "admin123"
+    },
+    "userProfile": {
+      "firstName": "Admin",
+      "lastName": "User",
+      "phoneNumber": "+1234567890",
+      "profileImageUrl": "https://example.com/admin.jpg"
+    }
+  }'
+```
+
+### Frontend Setup and CORS Configuration
+
+1. **Run the frontend on port 4200** (default Angular port)
+2. If using a different port, update `CorsConfig.java` to allow the new origin:
+
+```java
+@Configuration
+@EnableWebMvc
+public class CorsConfig implements WebMvcConfigurer {
+    @Override
+    public void addCorsMappings(CorsRegistry registry) {
+        registry.addMapping("/**")
+                .allowedOrigins("http://localhost:4200", "http://localhost:YOUR_PORT") // Add your port here
+                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                .allowedHeaders("*")
+                .allowCredentials(true);
+    }
+}
+```
+
+### User Registration and Verification Process
+
+1. **New users sign up** through the frontend registration form
+   - This creates users with status `"Pending Verification"`
+   - Users cannot access full functionality until verified
+
+2. **Admin login** to the frontend using the admin credentials created above
+
+3. **Admin verifies new users** through the admin panel
+   - Changes user status from `"Pending Verification"` to `"active"`
+   - Only active users can fully use the application
+
+4. **User workflow**:
+   ```
+   Registration (Frontend) → Pending Verification → Admin Verification → Active User → Full Access
+   ```
+
+### API Endpoints for User Management
+
+- **Create Admin**: `POST /admin/create-admin`
+- **User Registration**: `POST /auth/register` 
+- **User Login**: `GET /auth/login`
+- **View All Users**: `GET /admin/users`
+- **Verify User**: `POST /admin/verify-user/{userId}`
+- **Ban/Unban User**: `POST /admin/ban-user/{userId}` or `POST /admin/unban-user/{userId}`
+
+---
+
+You are now ready to use SQL Server 2022 with your Spring Boot app, connect via VS Code, and manage users through the admin system!
