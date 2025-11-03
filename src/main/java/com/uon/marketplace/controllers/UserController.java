@@ -1,15 +1,27 @@
 package com.uon.marketplace.controllers;
 
+import java.math.BigDecimal;
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.uon.marketplace.dto.requests.MarketPlaceProductRequest;
+import com.uon.marketplace.dto.responses.MarketPlaceUser;
+import com.uon.marketplace.dto.responses.MyReviews;
+import com.uon.marketplace.dto.responses.ProductReviews;
 import com.uon.marketplace.entities.MarketPlaceProduct;
 import com.uon.marketplace.entities.UserProfile;
 import com.uon.marketplace.services.UserService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-import java.math.BigDecimal;
-import java.util.List;
 
 @RestController
 @RequestMapping("/users")
@@ -97,7 +109,7 @@ public class UserController {
         return ResponseEntity.ok(userService.addSellerReview(review));
     }
 
-    @PutMapping("/reviews/seller/{reviewId}")
+    @PutMapping("/reviews/{reviewId}")
     public ResponseEntity<com.uon.marketplace.dto.responses.SellerReviewResponse> updateReview(@PathVariable Long reviewId, @RequestBody com.uon.marketplace.dto.requests.SellerReviewRequest reviewDetails) {
         return ResponseEntity.ok(userService.updatReviewResponse(reviewId, reviewDetails));
     }
@@ -127,5 +139,23 @@ public class UserController {
     public ResponseEntity<String> resetPassword(@RequestParam Long userId, @RequestParam String newPassword) {
         String result = userService.resetPassword(userId, newPassword);
         return ResponseEntity.ok(result);
-    }   
+    }  
+    @GetMapping("/all/users")
+    public ResponseEntity<List<MarketPlaceUser>> getAllUsers() {
+        return ResponseEntity.ok(userService.getAllUsers());
+    }
+    @GetMapping("/product-reviews/{productId}")
+    public ResponseEntity<ProductReviews> getProductReviews(@PathVariable Long productId) {
+        return ResponseEntity.ok(userService.getReviewsForProduct(productId));
+    }
+    @GetMapping("/my-reviews/{userId}")
+    public ResponseEntity<MyReviews> getMyReviews(@PathVariable Long userId) {
+        return ResponseEntity.ok(userService.getMyReviews(userId));
+    }
+  // endpoint to get seller info by user id
+    @GetMapping("/seller-info/{sellerId}")
+    public ResponseEntity<MarketPlaceUser> getSellerInfoByUserId(@PathVariable Long sellerId) {
+        return ResponseEntity.ok(userService.getSellerInfoByUserId(sellerId));
+    }
+
 }

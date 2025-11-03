@@ -6,10 +6,10 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.fasterxml.jackson.dataformat.yaml.snakeyaml.error.Mark;
 import com.uon.marketplace.dto.requests.AppUserRequest;
 import com.uon.marketplace.dto.requests.CreateUserRequest;
 import com.uon.marketplace.dto.requests.UserProfileRequest;
+import com.uon.marketplace.dto.responses.AdminUserProfile;
 import com.uon.marketplace.dto.responses.AppUserResponse;
 import com.uon.marketplace.dto.responses.SellerReviewResponse;
 import com.uon.marketplace.entities.AppUser;
@@ -35,6 +35,9 @@ public class AdminService {
 
     @Autowired
     private BuyerReviewService buyerReviewService;
+
+    @Autowired
+    private ResponseMapper responseMapper;
 
     public AppUserResponse createAdmin(CreateUserRequest request) {
         AppUserRequest appUserReq = request.getAppUser();
@@ -124,7 +127,7 @@ public class AdminService {
         List<SellerReviews> reviews = sellerReviewService.getReviewsBySellerId(userId);
         List<SellerReviewResponse> responseList = new ArrayList<>();
         for (SellerReviews review : reviews) {
-            responseList.add(new ResponseMapper().converToSellerReviewResponse(review));
+            responseList.add(responseMapper.converToSellerReviewResponse(review));
         }
         return responseList;
     }
@@ -133,8 +136,80 @@ public class AdminService {
         List<com.uon.marketplace.entities.BuyerReviews> reviews = buyerReviewService.getReviewsByBuyerId(userId);
         List<com.uon.marketplace.dto.responses.BuyerReviewResponse> responseList = new ArrayList<>();
         for (com.uon.marketplace.entities.BuyerReviews review : reviews) {
-            responseList.add(new ResponseMapper().convertToBuyerReviewResponse(review));
+            responseList.add(responseMapper.convertToBuyerReviewResponse(review));
         }
         return responseList;
+    }
+
+    public AppUser verifyUser(Long userId) {
+        // TODO Auto-generated method stub
+        AppUser user = appUserService.getUserById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        user.setStatus("active");
+        appUserService.updateUser(userId, user);
+        return user;
+    }
+    public AdminUserProfile getUserProfileForAdmin(Long userId){
+        AppUser user = appUserService.getUserById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        UserProfile profile = userProfileService.getProfileById(userId)
+                .orElseThrow(() -> new RuntimeException("Profile not found"));
+
+        List<SellerReviews> sellerReviewsGiven = sellerReviewService.getReviewsByReviewerId(userId);
+        List<SellerReviews> sellerReviewsReceived = sellerReviewService.getReviewsBySellerId(userId);
+        List<com.uon.marketplace.entities.BuyerReviews> buyerReviewsGiven = buyerReviewService.getReviewsByReviewerId(userId);
+        List<com.uon.marketplace.entities.BuyerReviews> buyerReviewsReceived = buyerReviewService.getReviewsByBuyerId(userId);
+
+        SellerReviewResponse sellerReviewsGivenResponse = null;
+        SellerReviewResponse sellerReviewsReceivedResponse = null;
+        List<com.uon.marketplace.dto.responses.BuyerReviewResponse> buyerReviewsGivenResponse = new ArrayList<>();
+        List<com.uon.marketplace.dto.responses.BuyerReviewResponse> buyerReviewsReceivedResponse = new ArrayList<>();
+        List<SellerReviewResponse> sellerReviewsGivenResponseList = new ArrayList<>();
+        List<SellerReviewResponse> sellerReviewsReceivedResponseList = new ArrayList<>();
+
+        if (!sellerReviewsGiven.isEmpty()) {
+            for (SellerReviews review : sellerReviewsGiven) {
+                sellerReviewsGivenResponseList.add(responseMapper.converToSellerReviewResponse(review));
+            }
+        }
+        if (!sellerReviewsReceived.isEmpty()) {
+            for (SellerReviews review : sellerReviewsReceived) {
+                sellerReviewsReceivedResponseList.add(responseMapper.converToSellerReviewResponse(review));
+            }
+        }
+        if (!buyerReviewsGiven.isEmpty()) {
+            for (com.uon.marketplace.entities.BuyerReviews review : buyerReviewsGiven) {
+                buyerReviewsGivenResponse.add(responseMapper.convertToBuyerReviewResponse(review));
+            }
+        }
+        if (!buyerReviewsReceived.isEmpty()) {
+            for (com.uon.marketplace.entities.BuyerReviews review : buyerReviewsReceived) {
+                buyerReviewsReceivedResponse.add(responseMapper.convertToBuyerReviewResponse(review));
+            }
+        }
+        AppUserResponse appUserResponse = new AppUserResponse(user, profile);
+        //get all listed products by user
+        List<MarketPlaceProduct> productsListed = marketPlaceProductService.getProductsBySellerId(userId);
+        //get all purchased products by user
+        List<MarketPlaceProduct> productsPurchased = marketPlaceProductService.getProductsByBuyerId(userId);
+
+        AdminUserProfile adminUserProfile = new AdminUserProfile();
+        adminUserProfile.setUserDetails(responseMapper.convertAppUserReponseToMarketplaceuser(appUserResponse));
+        adminUserProfile.setSellerReviewsGiven( sellerReviewsGivenResponseList);
+        adminUserProfile.setSellerReviewsReceived(  sellerReviewsReceivedResponseList);
+        adminUserProfile.setBuyerReviewsGiven(buyerReviewsGivenResponse);
+        adminUserProfile.setBuyerReviewsReceived(buyerReviewsReceivedResponse);
+        adminUserProfile.setTotalProductsListed(productsListed.size());
+        adminUserProfile.setTotalProductsPurchased(productsPurchased.size());
+        adminUserProfile.setTotalSellerReviewsGiven(sellerReviewsGiven.size());
+        adminUserProfile.setTotalSellerReviewsReceived(sellerReviewsReceived.size());
+        adminUserProfile.setTotalBuyerReviewsGiven(buyerReviewsGiven.size());
+        adminUserProfile.setTotalBuyerReviewsReceived(buyerReviewsReceived.size());
+        adminUserProfile.setProductsListed(productsListed);;
+        adminUserProfile.setProductsPurchased(productsPurchased);
+        adminUserProfile.setAverageSellerRating(sellerReviewService.getAverageRatingForSeller(userId));
+        adminUserProfile.setAverageBuyerRating(buyerReviewService.getAverageRatingForBuyer(userId));
+
+        return adminUserProfile;
     }
 }

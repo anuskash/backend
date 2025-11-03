@@ -2,10 +2,13 @@ package com.uon.marketplace.controllers;
 
 import java.util.List;
 
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.uon.marketplace.dto.responses.AdminUserProfile;
 import com.uon.marketplace.dto.responses.AppUserResponse;
+import com.uon.marketplace.entities.AppUser;
 
 @RestController
 @RequestMapping("/admin")
@@ -60,5 +63,17 @@ public class AdminController {
     public org.springframework.http.ResponseEntity<String> unbanUser(@org.springframework.web.bind.annotation.PathVariable Long userId) {
         adminService.unbanUser(userId);
         return org.springframework.http.ResponseEntity.ok("User with ID " + userId + " has been unbanned.");
+    }
+    //verify user endpoint
+    @PutMapping("/verify-user/{userId}")
+    public org.springframework.http.ResponseEntity<AppUser> verifyUser(@org.springframework.web.bind.annotation.PathVariable Long userId) {
+        AppUser verifiedUser = adminService.verifyUser(userId);
+        return org.springframework.http.ResponseEntity.ok(verifiedUser);
+    }
+    //get user profile for admin endpoint
+    @org.springframework.web.bind.annotation.GetMapping("/user-profile/{userId}")
+    public org.springframework.http.ResponseEntity<AdminUserProfile> getUserProfileForAdmin(@org.springframework.web.bind.annotation.PathVariable Long userId) {
+        AdminUserProfile userProfile = adminService.getUserProfileForAdmin(userId);
+        return org.springframework.http.ResponseEntity.ok(userProfile);
     }
 }

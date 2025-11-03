@@ -23,6 +23,15 @@ public class SellerReviewService {
         review.setReviewText(request.getReviewText());
         return sellerReviewsRepository.save(review);
     }
+    public SellerReviews updateReview(Long reviewId, SellerReviewRequest request) {
+        return sellerReviewsRepository.findById(reviewId)
+                .map(review -> {
+                    review.setRating(request.getRating());
+                    review.setReviewText(request.getReviewText());
+                    return sellerReviewsRepository.save(review);
+                })
+                .orElseThrow(() -> new RuntimeException("Review not found"));
+    }
 
     public Optional<SellerReviews> getReviewById(Long reviewId) {
         return sellerReviewsRepository.findById(reviewId);
@@ -39,5 +48,20 @@ public class SellerReviewService {
     public List<SellerReviews> getReviewsByReviewerId(Long reviewerId) {
         return sellerReviewsRepository.findByReviewerId(reviewerId);
     }
+
+    //find review by product id
+    public List<SellerReviews> getReviewsByProductId(Long productId) {
+        return sellerReviewsRepository.findAll().stream()
+                .filter(review -> review.getProductId().equals(productId))
+                .toList();
+    }
+    public Double getAverageRatingForSeller(Long userId) {
+        List<SellerReviews> reviews = sellerReviewsRepository.findBySellerId(userId);
+        if (reviews.isEmpty()) {
+            return 0.0;
+        }
+        double sum = reviews.stream().mapToDouble(SellerReviews::getRating).sum();
+        return sum / reviews.size();
+    }   
     
 }

@@ -14,7 +14,6 @@ public class MarketPlaceProductRequest {
     private String productImageUrl;
     private String productName;
     private BigDecimal price;
-    private Integer quantity;
     private String condition;
     private String category;
 }

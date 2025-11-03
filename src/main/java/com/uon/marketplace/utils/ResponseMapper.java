@@ -2,6 +2,8 @@ package com.uon.marketplace.utils;
 
 import org.springframework.beans.factory.annotation.Autowired;
 
+import com.uon.marketplace.dto.responses.AppUserResponse;
+import com.uon.marketplace.dto.responses.MarketPlaceUser;
 import com.uon.marketplace.dto.responses.SellerReviewResponse;
 import com.uon.marketplace.entities.MarketPlaceProduct;
 import com.uon.marketplace.entities.SellerReviews;
@@ -9,6 +11,9 @@ import com.uon.marketplace.entities.UserProfile;
 import com.uon.marketplace.services.MarketPlaceProductService;
 import com.uon.marketplace.services.UserProfileService;
 
+import org.springframework.stereotype.Component;
+
+@Component
 public class ResponseMapper {
     @Autowired
     private UserProfileService userProfileService;
@@ -23,6 +28,9 @@ public class ResponseMapper {
         response.setReviewerName(reviewerProfile.getFirstName() + " " + reviewerProfile.getLastName());
         response.setRating(review.getRating());
         response.setReviewText(review.getReviewText());
+        response.setReviewId(review.getReviewId());
+        response.setReviewerId(review.getReviewerId());
+        response.setBuyerId(review.getBuyerId());
         MarketPlaceProduct product = marketPlaceProductService.getProductById(review.getProductId()).orElse(null);
         if(product != null) {
             response.setProductName(product.getProductName());
@@ -37,10 +45,13 @@ public class ResponseMapper {
         UserProfile reviewerProfile = userProfileService.getProfileByUserId(review.getReviewerId());
         UserProfile sellerProfile = userProfileService.getProfileByUserId(review.getSellerId());
         SellerReviewResponse response = new SellerReviewResponse();
+        response.setReviewId(review.getReviewId());
         response.setSellerName(sellerProfile.getFirstName() + " " + sellerProfile.getLastName());
         response.setReviewerName(reviewerProfile.getFirstName() + " " + reviewerProfile.getLastName());
         response.setRating(review.getRating());
         response.setReviewText(review.getReviewText());
+        response.setReviewerId(review.getReviewerId());
+        response.setSellerId(review.getSellerId());
         MarketPlaceProduct product = marketPlaceProductService.getProductById(review.getProductId()).orElse(null);
         if(product != null) {
             response.setProductName(product.getProductName());
@@ -50,6 +61,16 @@ public class ResponseMapper {
             response.setCondition(product.getCondition());
         }
         return response;
+    }
+
+    public MarketPlaceUser convertAppUserReponseToMarketplaceuser(AppUserResponse appUserResponse) {
+        MarketPlaceUser marketPlaceUser = new MarketPlaceUser();
+        marketPlaceUser.setUserId(appUserResponse.getAppUser().getUserId());
+       marketPlaceUser.setFirstName(appUserResponse.getUserProfile().getFirstName());
+         marketPlaceUser.setLastName(appUserResponse.getUserProfile().getLastName());
+            marketPlaceUser.setEmail(appUserResponse.getAppUser().getEmail());
+            marketPlaceUser.setPhoneNumber(appUserResponse.getUserProfile().getPhoneNumber());
+        return marketPlaceUser;
     }
     
 }

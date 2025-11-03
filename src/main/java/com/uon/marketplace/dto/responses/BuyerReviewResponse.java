@@ -9,6 +9,9 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 @NoArgsConstructor
 public class BuyerReviewResponse {
+    private Long reviewId;
+    private Long reviewerId;
+    private Long buyerId;
     private String buyerName;
     private String reviewerName;
     private Integer rating;

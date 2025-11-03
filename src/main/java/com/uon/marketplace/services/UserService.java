@@ -2,18 +2,22 @@ package com.uon.marketplace.services;
 
 import java.util.List;
 
-import org.apache.catalina.User;
 import org.springframework.stereotype.Service;
 
 import com.uon.marketplace.dto.requests.MarketPlaceProductRequest;
 import com.uon.marketplace.dto.requests.SellerReviewRequest;
+import com.uon.marketplace.dto.responses.AppUserResponse;
 import com.uon.marketplace.dto.responses.AverageRating;
+import com.uon.marketplace.dto.responses.MarketPlaceUser;
+import com.uon.marketplace.dto.responses.MyReviews;
+import com.uon.marketplace.dto.responses.ProductReviews;
 import com.uon.marketplace.dto.responses.SellerReviewResponse;
 import com.uon.marketplace.entities.AppUser;
 import com.uon.marketplace.entities.MarketPlaceProduct;
 import com.uon.marketplace.entities.SellerReviews;
 import com.uon.marketplace.entities.UserProfile;
 import com.uon.marketplace.utils.PasswordHashUtil;
+import com.uon.marketplace.utils.ResponseMapper;
 
 @Service
 public class UserService {
@@ -22,13 +26,15 @@ public class UserService {
     private final SellerReviewService sellerReviewService;
     private final BuyerReviewService buyerReviewService;
     private final AppUserService appUserService;
+    private final ResponseMapper responseMapper;
 
-    public UserService(UserProfileService userProfileService, MarketPlaceProductService marketPlaceProductService, SellerReviewService sellerReviewService, BuyerReviewService buyerReviewService, AppUserService appUserService) {
+    public UserService(UserProfileService userProfileService, MarketPlaceProductService marketPlaceProductService, SellerReviewService sellerReviewService, BuyerReviewService buyerReviewService, AppUserService appUserService, ResponseMapper responseMapper) {
         this.userProfileService = userProfileService;
         this.marketPlaceProductService = marketPlaceProductService;
         this.sellerReviewService = sellerReviewService;
         this.buyerReviewService = buyerReviewService;
         this.appUserService = appUserService;
+        this.responseMapper = responseMapper;
     }
 
     public UserProfile getUserProfile(Long userId) {
@@ -100,7 +106,7 @@ public class UserService {
         return marketPlaceProductService.getAvailableProducts();
     }
     public SellerReviewResponse converToSellerReviewResponse(SellerReviews review) {
-        return new com.uon.marketplace.utils.ResponseMapper().converToSellerReviewResponse(review);
+        return responseMapper.converToSellerReviewResponse(review);
     }
     public List<SellerReviewResponse> getAllReviewsBySellerId(Long sellerId) {
         java.util.List<SellerReviews> reviews = sellerReviewService.getReviewsBySellerId(sellerId);
@@ -147,13 +153,13 @@ public class UserService {
                 .orElseThrow(() -> new RuntimeException("Review not found with ID: " + reviewId));
         existingReview.setRating(reviewDetails.getRating());
         existingReview.setReviewText(reviewDetails.getReviewText());
-        SellerReviews updatedReview = sellerReviewService.createReview(reviewDetails);
+        SellerReviews updatedReview = sellerReviewService.updateReview(reviewId, reviewDetails);
         return converToSellerReviewResponse(updatedReview);
     }
         // --- Buyer Review Methods ---
-    public com.uon.marketplace.dto.responses.BuyerReviewResponse convertToBuyerReviewResponse(com.uon.marketplace.entities.BuyerReviews review) {
-      return new com.uon.marketplace.utils.ResponseMapper().convertToBuyerReviewResponse(review);
-    }
+        public com.uon.marketplace.dto.responses.BuyerReviewResponse convertToBuyerReviewResponse(com.uon.marketplace.entities.BuyerReviews review) {
+                return responseMapper.convertToBuyerReviewResponse(review);
+        }
 
     public List<com.uon.marketplace.dto.responses.BuyerReviewResponse> getAllReviewsByBuyerId(Long buyerId) {
         List<com.uon.marketplace.entities.BuyerReviews> reviews = buyerReviewService.getReviewsByBuyerId(buyerId);
@@ -180,7 +186,7 @@ public class UserService {
     }
 
     public com.uon.marketplace.dto.responses.BuyerReviewResponse addBuyerReview(com.uon.marketplace.dto.requests.BuyerReviewRequest review) {
-        if(!verifyPurchase(review.getReviewerId(), review.getBuyerId(), review.getProductId())) {
+        if(!verifyPurchase(review.getBuyerId(), review.getReviewerId(), review.getProductId())) {
             throw new RuntimeException("Purchase verification failed. Review cannot be submitted.");
         }
         com.uon.marketplace.entities.BuyerReviews savedReview = buyerReviewService.createReview(review);
@@ -195,7 +201,7 @@ public class UserService {
         existingReview.setProductId(reviewDetails.getProductId());
         existingReview.setBuyerId(reviewDetails.getBuyerId());
         existingReview.setReviewerId(reviewDetails.getReviewerId());
-        com.uon.marketplace.entities.BuyerReviews updatedReview = buyerReviewService.createReview(reviewDetails);
+        com.uon.marketplace.entities.BuyerReviews updatedReview = buyerReviewService.updateReview(reviewId, reviewDetails);
         return convertToBuyerReviewResponse(updatedReview);
     }
 
@@ -239,4 +245,107 @@ public class UserService {
         avgRating.setTotalReviews(reviews.size());
         return avgRating;
     
-    }}
+    }
+
+    public List<MarketPlaceUser> getAllUsers() {
+        List<AppUser> appUserResponses = appUserService.getAllUsers();
+        List<AppUserResponse> appUserResponseDtos = new java.util.ArrayList<>();
+        for (AppUser appUser : appUserResponses) {
+            UserProfile profile = userProfileService.getProfileById(appUser.getUserId())
+                    .orElse(new UserProfile());
+            appUserResponseDtos.add(new AppUserResponse(appUser, profile));
+        }
+        List<MarketPlaceUser> marketPlaceUsers = new java.util.ArrayList<>();
+        for (AppUserResponse appUserResponse : appUserResponseDtos) {
+            marketPlaceUsers.add(responseMapper.convertAppUserReponseToMarketplaceuser(appUserResponse));
+        }
+        return marketPlaceUsers;
+    }
+    //get rebviews for a product
+    public ProductReviews getReviewsForProduct(Long productId) {
+        List<com.uon.marketplace.entities.BuyerReviews> buyerReviewsGiven = buyerReviewService.getReviewsByProductId(productId);
+        List<SellerReviews> sellerReviews = sellerReviewService.getReviewsByProductId(productId);
+        
+        List<com.uon.marketplace.dto.responses.BuyerReviewResponse> buyerReviewResponses = new java.util.ArrayList<>();
+        for(com.uon.marketplace.entities.BuyerReviews review : buyerReviewsGiven) {
+            buyerReviewResponses.add(convertToBuyerReviewResponse(review));
+        }
+        
+        List<SellerReviewResponse> sellerReviewResponses = new java.util.ArrayList<>();
+        for(SellerReviews review : sellerReviews) {
+            sellerReviewResponses.add(converToSellerReviewResponse(review));
+        }
+        
+        ProductReviews productReviews = new ProductReviews();
+        productReviews.setProductId(productId);
+        productReviews.setBuyerReviews(buyerReviewResponses);
+        productReviews.setSellerReviews(sellerReviewResponses);
+        
+        return productReviews;
+    }
+    public MyReviews getMyReviews(Long userId) {
+
+        //recied reviews
+        List<SellerReviews> sellerReviews = sellerReviewService.getReviewsBySellerId(userId);
+        List<com.uon.marketplace.entities.BuyerReviews> buyerReviews = buyerReviewService.getReviewsByReviewerId(userId);
+        System.out.println("Seller Reviews Count: " + sellerReviews.size());
+        System.out.println("Buyer Reviews Count: " + buyerReviews.size());
+        List<SellerReviewResponse> sellerReviewResponses = new java.util.ArrayList<>();
+        for(SellerReviews review : sellerReviews) {
+            sellerReviewResponses.add(converToSellerReviewResponse(review));
+        }
+
+        List<com.uon.marketplace.dto.responses.BuyerReviewResponse> buyerReviewResponses = new java.util.ArrayList<>();
+        for(com.uon.marketplace.entities.BuyerReviews review : buyerReviews) {
+            buyerReviewResponses.add(convertToBuyerReviewResponse(review));
+        }
+        //received reviews
+        List<SellerReviews> sellerReviewsGiven = sellerReviewService.getReviewsByReviewerId(userId);
+        List<com.uon.marketplace.entities.BuyerReviews> buyerReviewsRecieved = buyerReviewService.getReviewsByBuyerId(userId);
+        // append these two lists to the existing lists
+        for(SellerReviews review : sellerReviewsGiven) {
+            sellerReviewResponses.add(converToSellerReviewResponse(review));
+        }
+        for(com.uon.marketplace.entities.BuyerReviews review : buyerReviewsRecieved) {
+            buyerReviewResponses.add(convertToBuyerReviewResponse(review));
+        }
+
+        MyReviews myReviews = new MyReviews();
+        myReviews.setSellerReviews(sellerReviewResponses);
+        myReviews.setBuyerReviews(buyerReviewResponses);
+        myReviews.setUserId(userId);
+        myReviews.setTotalReviews(sellerReviews.size() + buyerReviews.size());
+        int totalGiven = buyerReviews.size();
+        int totalReceived = sellerReviews.size();
+        myReviews.setTotalReviewsGiven(totalGiven);
+        myReviews.setTotalReviewsReceived(totalReceived);
+        Double averageBuyerRatingReceived = 0.0;
+        if(totalReceived > 0) {
+            double totalBuyerRating = 0;
+            for(com.uon.marketplace.entities.BuyerReviews review :  buyerReviewsRecieved) {
+                totalBuyerRating += review.getRating();
+            }
+            averageBuyerRatingReceived = (totalBuyerRating / totalReceived);
+        }      
+        myReviews.setAverageBuyerRatingReceived(averageBuyerRatingReceived);
+        Double averageSellerRatingReceived = 0.0;
+        if(totalGiven > 0) {
+            double totalSellerRating = 0;
+            for(SellerReviews review : sellerReviews) {
+                totalSellerRating += review.getRating();
+            }
+            averageSellerRatingReceived = (totalSellerRating / totalGiven);
+        }
+        myReviews.setAverageSellerRatingReceived(averageSellerRatingReceived);
+        return myReviews;
+    }
+
+    public MarketPlaceUser getSellerInfoByUserId(Long userId) {
+        AppUser appUser = appUserService.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
+        UserProfile userProfile = userProfileService.getProfileByUserId(userId);
+        AppUserResponse appUserResponse = new AppUserResponse(appUser, userProfile);
+        return responseMapper.convertAppUserReponseToMarketplaceuser(appUserResponse);
+    }
+
+}

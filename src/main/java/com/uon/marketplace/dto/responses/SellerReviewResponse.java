@@ -10,6 +10,9 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class SellerReviewResponse {
+    private Long reviewId;
+    private Long reviewerId;
+    private Long sellerId;
     private String reviewerName;
     private String reviewText;
     private int rating;
