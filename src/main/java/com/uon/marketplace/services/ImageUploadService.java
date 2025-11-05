@@ -26,7 +26,7 @@ public class ImageUploadService {
 
     private static final List<String> ALLOWED_EXTENSIONS = Arrays.asList("jpg", "jpeg", "png", "webp");
     private static final long MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-    private static final int MIN_DIMENSION = 800;
+    private static final int MIN_DIMENSION = 300;
     private static final int MAX_DIMENSION = 4000;
     private static final int THUMBNAIL_SIZE = 400;
 
