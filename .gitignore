@@ -35,3 +35,5 @@ build/
 .fake
 .DS_Store
 .mvn/
+uploads/
+

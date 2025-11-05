@@ -2,8 +2,12 @@ package com.uon.marketplace.controllers;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,6 +18,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.uon.marketplace.dto.requests.MarketPlaceProductRequest;
 import com.uon.marketplace.dto.responses.MarketPlaceUser;
@@ -21,16 +27,22 @@ import com.uon.marketplace.dto.responses.MyReviews;
 import com.uon.marketplace.dto.responses.ProductReviews;
 import com.uon.marketplace.entities.MarketPlaceProduct;
 import com.uon.marketplace.entities.UserProfile;
+import com.uon.marketplace.services.ImageUploadService;
 import com.uon.marketplace.services.UserService;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 @RestController
 @RequestMapping("/users")
 public class UserController {
     private final UserService userService;
+    private final ImageUploadService imageUploadService;
 
     @Autowired
-    public UserController(UserService userService) {
+    public UserController(UserService userService, ImageUploadService imageUploadService) {
         this.userService = userService;
+        this.imageUploadService = imageUploadService;
     }
 
     @GetMapping("/profile/{userId}")
@@ -156,6 +168,89 @@ public class UserController {
     @GetMapping("/seller-info/{sellerId}")
     public ResponseEntity<MarketPlaceUser> getSellerInfoByUserId(@PathVariable Long sellerId) {
         return ResponseEntity.ok(userService.getSellerInfoByUserId(sellerId));
+    }
+
+    // --- Image Upload Endpoints ---
+    
+    /**
+     * Upload a single product image
+     * @param file the image file to upload
+     * @return JSON with imageUrl
+     */
+    @Operation(
+        summary = "Upload a single product image",
+        description = "Upload an image file for a product listing. Accepts JPEG, PNG, WEBP. Max size: 5MB",
+        requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            required = true,
+            content = @Content(mediaType = "multipart/form-data")
+        )
+    )
+    @ApiResponse(responseCode = "200", description = "Image uploaded successfully")
+    @PostMapping(value = "/product/upload-image", consumes = {"multipart/form-data"})
+    public ResponseEntity<?> uploadProductImage(@RequestPart("file") MultipartFile file) {
+        try {
+            String imageUrl = imageUploadService.uploadImage(file);
+            Map<String, String> response = new HashMap<>();
+            response.put("imageUrl", imageUrl);
+            response.put("message", "Image uploaded successfully");
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(error);
+        } catch (IOException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to upload image: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    /**
+     * Upload multiple product images
+     * @param files array of image files to upload
+     * @return JSON with list of imageUrls
+     */
+    @Operation(summary = "Upload multiple product images",
+               description = "Upload up to 10 images for a product listing. Accepts JPEG, PNG, WEBP. Max size per file: 5MB")
+    @ApiResponse(responseCode = "200", description = "Images uploaded successfully")
+    @PostMapping(value = "/product/upload-multiple-images", consumes = {"multipart/form-data"})
+    public ResponseEntity<?> uploadMultipleProductImages(@RequestPart("files") MultipartFile[] files) {
+        try {
+            List<String> imageUrls = imageUploadService.uploadMultipleImages(files);
+            Map<String, Object> response = new HashMap<>();
+            response.put("imageUrls", imageUrls);
+            response.put("message", "Images uploaded successfully");
+            response.put("count", imageUrls.size());
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(error);
+        } catch (IOException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to upload images: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    /**
+     * Delete a product image
+     * @param imageUrl the URL of the image to delete
+     * @return success message
+     */
+    @DeleteMapping("/product/delete-image")
+    public ResponseEntity<?> deleteProductImage(@RequestParam String imageUrl) {
+        boolean deleted = imageUploadService.deleteImage(imageUrl);
+        Map<String, Object> response = new HashMap<>();
+        if (deleted) {
+            response.put("success", true);
+            response.put("message", "Image deleted successfully");
+            return ResponseEntity.ok(response);
+        } else {
+            response.put("success", false);
+            response.put("message", "Failed to delete image");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
     }
 
 }
