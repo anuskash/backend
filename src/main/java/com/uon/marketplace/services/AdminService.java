@@ -14,6 +14,7 @@ import com.uon.marketplace.dto.responses.AppUserResponse;
 import com.uon.marketplace.dto.responses.SellerReviewResponse;
 import com.uon.marketplace.entities.AppUser;
 import com.uon.marketplace.entities.MarketPlaceProduct;
+import com.uon.marketplace.entities.Role;
 import com.uon.marketplace.entities.SellerReviews;
 import com.uon.marketplace.entities.UserProfile;
 import com.uon.marketplace.utils.PasswordHashUtil;
@@ -43,12 +44,12 @@ public class AdminService {
         AppUserRequest appUserReq = request.getAppUser();
        
         AppUser appUser = new AppUser();
-    appUser.setRole("admin");
-    appUser.setPasswordHash(PasswordHashUtil.hashWithMD5(appUserReq.getPassword())); // Hash in real app
-    appUser.setStatus("active");
-    appUser.setEmail(appUserReq.getEmail());
-    appUser.setCreatedAt(java.time.LocalDateTime.now());
-    appUser = appUserService.createUser(appUser);
+        appUser.setRole(Role.ADMIN); // Set role to ADMIN enum
+        appUser.setPasswordHash(PasswordHashUtil.hashWithMD5(appUserReq.getPassword())); // Hash in real app
+        appUser.setStatus("active");
+        appUser.setEmail(appUserReq.getEmail());
+        appUser.setCreatedAt(java.time.LocalDateTime.now());
+        appUser = appUserService.createUser(appUser);
 
         UserProfileRequest profileReq = request.getUserProfile();
         UserProfile userProfile = new UserProfile();
@@ -64,12 +65,12 @@ public class AdminService {
     public AppUserResponse createUser(CreateUserRequest request) {
         AppUserRequest appUserReq = request.getAppUser();
         AppUser appUser = new AppUser();
-    appUser.setRole("user");
-    appUser.setPasswordHash(PasswordHashUtil.hashWithMD5(appUserReq.getPassword())); // Hash in real app
-    appUser.setStatus("active");
-    appUser.setEmail(appUserReq.getEmail());
-    appUser.setCreatedAt(java.time.LocalDateTime.now());
-    appUser = appUserService.createUser(appUser);
+        appUser.setRole(Role.USER); // Set role to USER enum
+        appUser.setPasswordHash(PasswordHashUtil.hashWithMD5(appUserReq.getPassword())); // Hash in real app
+        appUser.setStatus("active");
+        appUser.setEmail(appUserReq.getEmail());
+        appUser.setCreatedAt(java.time.LocalDateTime.now());
+        appUser = appUserService.createUser(appUser);
 
         UserProfileRequest profileReq = request.getUserProfile();
         UserProfile userProfile = new UserProfile();
@@ -211,5 +212,54 @@ public class AdminService {
         adminUserProfile.setAverageBuyerRating(buyerReviewService.getAverageRatingForBuyer(userId));
 
         return adminUserProfile;
+    }
+    
+    public AdminUserProfile getUserProfileForAdminByEmail(String email){
+        AppUser user = appUserService.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        return getUserProfileForAdmin(user.getUserId());
+    }
+    
+    //delete user by id - permanently remove user and all associated data
+    public void deleteUser(Long userId) {
+        // Check if user exists first
+        appUserService.getUserById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        
+        // Delete all buyer reviews where user is the reviewer or the buyer being reviewed
+        List<com.uon.marketplace.entities.BuyerReviews> buyerReviewsAsReviewer = buyerReviewService.getReviewsByReviewerId(userId);
+        for (com.uon.marketplace.entities.BuyerReviews review : buyerReviewsAsReviewer) {
+            buyerReviewService.deleteReview(review.getReviewId());
+        }
+        List<com.uon.marketplace.entities.BuyerReviews> buyerReviewsAsBuyer = buyerReviewService.getReviewsByBuyerId(userId);
+        for (com.uon.marketplace.entities.BuyerReviews review : buyerReviewsAsBuyer) {
+            buyerReviewService.deleteReview(review.getReviewId());
+        }
+        
+        // Delete all seller reviews where user is the reviewer or the seller being reviewed
+        List<SellerReviews> sellerReviewsAsReviewer = sellerReviewService.getReviewsByReviewerId(userId);
+        for (SellerReviews review : sellerReviewsAsReviewer) {
+            sellerReviewService.deleteReview(review.getReviewId());
+        }
+        List<SellerReviews> sellerReviewsAsSeller = sellerReviewService.getReviewsBySellerId(userId);
+        for (SellerReviews review : sellerReviewsAsSeller) {
+            sellerReviewService.deleteReview(review.getReviewId());
+        }
+        
+        // Delete all products where user is seller or buyer
+        List<MarketPlaceProduct> productsAsSeller = marketPlaceProductService.getProductsBySellerId(userId);
+        for (MarketPlaceProduct product : productsAsSeller) {
+            marketPlaceProductService.deleteProduct(product.getProductId());
+        }
+        List<MarketPlaceProduct> productsAsBuyer = marketPlaceProductService.getProductsByBuyerId(userId);
+        for (MarketPlaceProduct product : productsAsBuyer) {
+            marketPlaceProductService.deleteProduct(product.getProductId());
+        }
+        
+        // Delete user profile
+        userProfileService.deleteProfile(userId);
+        
+        // Finally, delete the user
+        appUserService.deleteUser(userId);
     }
 }

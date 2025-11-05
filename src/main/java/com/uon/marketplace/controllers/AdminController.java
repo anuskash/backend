@@ -2,6 +2,7 @@ package com.uon.marketplace.controllers;
 
 import java.util.List;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -10,8 +11,13 @@ import com.uon.marketplace.dto.responses.AdminUserProfile;
 import com.uon.marketplace.dto.responses.AppUserResponse;
 import com.uon.marketplace.entities.AppUser;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 @RestController
 @RequestMapping("/admin")
+@Tag(name = "Admin", description = "Administrative operations for managing users, reviews, and products")
+@PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')") // All admin endpoints require at least ADMIN role
 public class AdminController {
 	@org.springframework.beans.factory.annotation.Autowired
 	private com.uon.marketplace.services.AdminService adminService;
@@ -35,7 +41,9 @@ public class AdminController {
         return org.springframework.http.ResponseEntity.ok(users);
     }
     //create admin endpoint
+    @PreAuthorize("hasRole('SUPER_ADMIN')") // Only super admins can create other admins
     @org.springframework.web.bind.annotation.PostMapping("/create-admin")
+    @Operation(summary = "Create admin user", description = "Super admin only - Creates a new admin user in the system")
     public org.springframework.http.ResponseEntity<AppUserResponse> createAdmin(@org.springframework.web.bind.annotation.RequestBody com.uon.marketplace.dto.requests.CreateUserRequest request) {
         AppUserResponse adminResponse = adminService.createAdmin(request);
         return org.springframework.http.ResponseEntity.ok(adminResponse);
@@ -75,5 +83,22 @@ public class AdminController {
     public org.springframework.http.ResponseEntity<AdminUserProfile> getUserProfileForAdmin(@org.springframework.web.bind.annotation.PathVariable Long userId) {
         AdminUserProfile userProfile = adminService.getUserProfileForAdmin(userId);
         return org.springframework.http.ResponseEntity.ok(userProfile);
+    }
+    
+    // get user profile for admin by email (convenience when ID isn't known)
+    @Operation(summary = "Get user profile by email", description = "Admin endpoint to fetch complete user profile including status, 2FA settings, reviews, and products by email address")
+    @org.springframework.web.bind.annotation.GetMapping("/user-profile/by-email")
+    public org.springframework.http.ResponseEntity<AdminUserProfile> getUserProfileForAdminByEmail(@org.springframework.web.bind.annotation.RequestParam String email) {
+        AdminUserProfile userProfile = adminService.getUserProfileForAdminByEmail(email.trim().toLowerCase());
+        return org.springframework.http.ResponseEntity.ok(userProfile);
+    }
+    
+    //delete user endpoint
+    @PreAuthorize("hasRole('SUPER_ADMIN')") // Only super admins can permanently delete users
+    @org.springframework.web.bind.annotation.DeleteMapping("/delete-user/{userId}")
+    @Operation(summary = "Delete user permanently", description = "Super admin only - Permanently deletes a user from the system")
+    public org.springframework.http.ResponseEntity<String> deleteUser(@org.springframework.web.bind.annotation.PathVariable Long userId) {
+        adminService.deleteUser(userId);
+        return org.springframework.http.ResponseEntity.ok("User with ID " + userId + " has been permanently deleted.");
     }
 }

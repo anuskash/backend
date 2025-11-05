@@ -14,4 +14,8 @@ public class MarketPlaceUser {
     private String lastName;
     private String email;
     private String phoneNumber;
+    private String role; // user/admin
+    private String status; // active, Pending Verification, banned, etc.
+    private Boolean emailVerified;
+    private Boolean twoFactorEnabled;
 }

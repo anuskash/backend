@@ -34,6 +34,7 @@ build/
 
 .fake
 .DS_Store
-.mvn/
+ # Keep Maven Wrapper properties in VCS; ignore only the wrapper jar
+ .mvn/wrapper/maven-wrapper.jar
 uploads/
 

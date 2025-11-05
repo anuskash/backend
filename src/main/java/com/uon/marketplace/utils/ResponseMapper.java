@@ -70,6 +70,10 @@ public class ResponseMapper {
          marketPlaceUser.setLastName(appUserResponse.getUserProfile().getLastName());
             marketPlaceUser.setEmail(appUserResponse.getAppUser().getEmail());
             marketPlaceUser.setPhoneNumber(appUserResponse.getUserProfile().getPhoneNumber());
+            marketPlaceUser.setRole(appUserResponse.getAppUser().getRole() != null ? appUserResponse.getAppUser().getRole().name() : null);
+            marketPlaceUser.setStatus(appUserResponse.getAppUser().getStatus());
+            marketPlaceUser.setEmailVerified(appUserResponse.getAppUser().getEmailVerified());
+            marketPlaceUser.setTwoFactorEnabled(appUserResponse.getAppUser().getTwoFactorEnabled());
         return marketPlaceUser;
     }
     

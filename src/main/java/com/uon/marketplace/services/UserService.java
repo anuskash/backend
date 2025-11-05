@@ -61,14 +61,27 @@ public class UserService {
         product.setSellerId(request.getSellerId());
         product.setProductName(request.getProductName());
         product.setProductDescription(request.getProductDescription());
-        product.setProductImageUrl(request.getProductImageUrl());
         product.setCondition(request.getCondition());
         UserProfile sellerProfile = userProfileService.getProfileByUserId(request.getSellerId());
         product.setSellerName(sellerProfile.getFirstName() + " " + sellerProfile.getLastName());
         product.setPrice(request.getPrice());
         product.setStatus("Available");
         product.setCategory(request.getCategory());
-        return marketPlaceProductService.createProduct(product);
+        
+            // Set the first image as the primary product image URL (for backward compatibility)
+            if (request.getImageUrls() != null && !request.getImageUrls().isEmpty()) {
+                product.setProductImageUrl(request.getImageUrls().get(0));
+            }
+        
+            // Save the product first
+            MarketPlaceProduct savedProduct = marketPlaceProductService.createProduct(product);
+        
+            // Save all images to the product_images table
+            if (request.getImageUrls() != null && !request.getImageUrls().isEmpty()) {
+                marketPlaceProductService.saveProductImages(savedProduct.getProductId(), request.getImageUrls());
+            }
+        
+            return savedProduct;
     }
     //update product status
     public MarketPlaceProduct updateProductStatus(Long productId, String newStatus) {
@@ -83,6 +96,18 @@ public class UserService {
     //remove product
     public void removeProduct(Long productId) {
         marketPlaceProductService.deleteProduct(productId);
+    }
+
+    public List<com.uon.marketplace.entities.ProductImage> getProductImages(Long productId) {
+        return marketPlaceProductService.getProductImages(productId);
+    }
+
+    public void updateProductImages(Long productId, List<String> imageUrls) {
+        marketPlaceProductService.saveProductImages(productId, imageUrls);
+    }
+
+    public void deleteProductImageByUrl(String imageUrl) {
+        marketPlaceProductService.deleteImageByUrl(imageUrl);
     }
     //mark product unavailable
     public MarketPlaceProduct markProductAsUnavailable(Long productId) {

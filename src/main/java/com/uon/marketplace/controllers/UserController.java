@@ -23,6 +23,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.uon.marketplace.dto.requests.MarketPlaceProductRequest;
 import com.uon.marketplace.dto.responses.MarketPlaceUser;
+import com.uon.marketplace.dto.requests.ProductImagesUpdateRequest;
 import com.uon.marketplace.dto.responses.MyReviews;
 import com.uon.marketplace.dto.responses.ProductReviews;
 import com.uon.marketplace.entities.MarketPlaceProduct;
@@ -147,11 +148,6 @@ public class UserController {
         return ResponseEntity.ok(userService.updateBuyerReview(reviewId, reviewDetails));
     }
 
-    @PutMapping("/reset-password")
-    public ResponseEntity<String> resetPassword(@RequestParam Long userId, @RequestParam String newPassword) {
-        String result = userService.resetPassword(userId, newPassword);
-        return ResponseEntity.ok(result);
-    }  
     @GetMapping("/all/users")
     public ResponseEntity<List<MarketPlaceUser>> getAllUsers() {
         return ResponseEntity.ok(userService.getAllUsers());
@@ -210,11 +206,24 @@ public class UserController {
      * @param files array of image files to upload
      * @return JSON with list of imageUrls
      */
-    @Operation(summary = "Upload multiple product images",
-               description = "Upload up to 10 images for a product listing. Accepts JPEG, PNG, WEBP. Max size per file: 5MB")
+    @Operation(
+        summary = "Upload multiple product images",
+        description = "Upload up to 10 images for a product listing. Accepts JPEG, PNG, WEBP. Max size per file: 5MB"
+    )
     @ApiResponse(responseCode = "200", description = "Images uploaded successfully")
     @PostMapping(value = "/product/upload-multiple-images", consumes = {"multipart/form-data"})
-    public ResponseEntity<?> uploadMultipleProductImages(@RequestPart("files") MultipartFile[] files) {
+    public ResponseEntity<?> uploadMultipleProductImages(
+        @io.swagger.v3.oas.annotations.Parameter(
+            description = "Array of image files",
+            required = true,
+            content = @Content(
+                mediaType = "multipart/form-data",
+                array = @io.swagger.v3.oas.annotations.media.ArraySchema(
+                    schema = @io.swagger.v3.oas.annotations.media.Schema(type = "string", format = "binary")
+                )
+            )
+        )
+        @RequestPart("files") MultipartFile[] files) {
         try {
             List<String> imageUrls = imageUploadService.uploadMultipleImages(files);
             Map<String, Object> response = new HashMap<>();
@@ -243,6 +252,8 @@ public class UserController {
         boolean deleted = imageUploadService.deleteImage(imageUrl);
         Map<String, Object> response = new HashMap<>();
         if (deleted) {
+            // Also remove DB record for this image URL, if any
+            userService.deleteProductImageByUrl(imageUrl);
             response.put("success", true);
             response.put("message", "Image deleted successfully");
             return ResponseEntity.ok(response);
@@ -251,6 +262,43 @@ public class UserController {
             response.put("message", "Failed to delete image");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
+    }
+
+    /**
+     * Get all images for a product
+     * @param productId the ID of the product
+     * @return list of image URLs
+     */
+    @Operation(summary = "Get all images for a product",
+               description = "Retrieve all uploaded images for a specific product, ordered by display order")
+    @GetMapping("/product/{productId}/images")
+    public ResponseEntity<?> getProductImages(@PathVariable Long productId) {
+        List<com.uon.marketplace.entities.ProductImage> images = userService.getProductImages(productId);
+        List<String> imageUrls = images.stream()
+                .map(com.uon.marketplace.entities.ProductImage::getImageUrl)
+                .collect(java.util.stream.Collectors.toList());
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("productId", productId);
+        response.put("imageUrls", imageUrls);
+        response.put("count", imageUrls.size());
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Update product images list and order
+     */
+    @Operation(summary = "Update product images",
+               description = "Attach or reorder images for an existing product. First URL becomes primary.")
+    @PutMapping("/product/{productId}/images")
+    public ResponseEntity<?> updateProductImages(@PathVariable Long productId,
+                                                 @RequestBody ProductImagesUpdateRequest request) {
+        userService.updateProductImages(productId, request.getImageUrls());
+        Map<String, Object> response = new HashMap<>();
+        response.put("productId", productId);
+        response.put("updated", true);
+        response.put("count", request.getImageUrls() != null ? request.getImageUrls().size() : 0);
+        return ResponseEntity.ok(response);
     }
 
 }
