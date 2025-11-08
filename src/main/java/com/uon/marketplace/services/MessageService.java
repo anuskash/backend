@@ -81,6 +81,43 @@ public class MessageService {
     public List<ConversationResponse> getConversations(Long userId) {
         List<Message> latestMessages = messageRepository.findLatestConversations(userId);
         
+        if (latestMessages.isEmpty()) {
+            return new ArrayList<>();
+        }
+        
+        // Batch fetch all related entities to avoid N+1 queries
+        List<Long> allUserIds = latestMessages.stream()
+            .flatMap(msg -> List.of(msg.getSenderId(), msg.getReceiverId()).stream())
+            .distinct()
+            .collect(Collectors.toList());
+        
+        List<Long> allProductIds = latestMessages.stream()
+            .map(Message::getProductId)
+            .distinct()
+            .collect(Collectors.toList());
+        
+        // Fetch all users and profiles at once
+        Map<Long, AppUser> userMap = appUserRepository.findAllById(allUserIds).stream()
+            .collect(Collectors.toMap(AppUser::getUserId, u -> u));
+        
+        Map<Long, UserProfile> profileMap = userProfileRepository.findByUserIdIn(allUserIds).stream()
+            .collect(Collectors.toMap(UserProfile::getUserId, p -> p));
+        
+        // Fetch all products at once
+        Map<Long, MarketPlaceProduct> productMap = productRepository.findAllById(allProductIds).stream()
+            .collect(Collectors.toMap(MarketPlaceProduct::getProductId, p -> p));
+        
+        // Fetch ALL unread messages for this user in one query
+        List<Message> allUnreadMessages = messageRepository.findByReceiverIdAndIsReadFalseOrderBySentAtDesc(userId);
+        
+        // Group unread messages by (otherUser, product) for quick lookup
+        Map<String, Long> unreadCountMap = new HashMap<>();
+        for (Message unreadMsg : allUnreadMessages) {
+            Long otherUserId = unreadMsg.getSenderId();
+            String key = otherUserId + "_" + unreadMsg.getProductId();
+            unreadCountMap.put(key, unreadCountMap.getOrDefault(key, 0L) + 1);
+        }
+        
         // Group messages by (otherUser, product) combination
         Map<String, ConversationResponse> conversationMap = new HashMap<>();
         
@@ -89,7 +126,9 @@ public class MessageService {
             String key = otherUserId + "_" + msg.getProductId();
             
             if (!conversationMap.containsKey(key)) {
-                ConversationResponse conv = buildConversationResponse(userId, msg, otherUserId);
+                Long unreadCount = unreadCountMap.getOrDefault(key, 0L);
+                ConversationResponse conv = buildConversationResponseOptimized(
+                    userId, msg, otherUserId, userMap, profileMap, productMap, unreadCount);
                 conversationMap.put(key, conv);
             }
         }
@@ -103,16 +142,34 @@ public class MessageService {
     public List<MessageResponse> getConversationMessages(Long userId, Long otherUserId, Long productId) {
         List<Message> messages = messageRepository.findConversation(userId, otherUserId, productId);
         
+        if (messages.isEmpty()) {
+            return new ArrayList<>();
+        }
+        
         // Mark messages as read if current user is the receiver
         messages.forEach(msg -> {
             if (msg.getReceiverId().equals(userId) && !msg.getIsRead()) {
                 msg.markAsRead();
-                messageRepository.save(msg);
             }
         });
+        messageRepository.saveAll(messages);
+        
+        // Batch fetch all related entities
+        List<Long> allUserIds = messages.stream()
+            .flatMap(msg -> List.of(msg.getSenderId(), msg.getReceiverId()).stream())
+            .distinct()
+            .collect(Collectors.toList());
+        
+        Map<Long, AppUser> userMap = appUserRepository.findAllById(allUserIds).stream()
+            .collect(Collectors.toMap(AppUser::getUserId, u -> u));
+        
+        Map<Long, UserProfile> profileMap = userProfileRepository.findByUserIdIn(allUserIds).stream()
+            .collect(Collectors.toMap(UserProfile::getUserId, p -> p));
+        
+        MarketPlaceProduct product = productRepository.findById(productId).orElse(null);
         
         return messages.stream()
-            .map(this::convertToMessageResponse)
+            .map(msg -> convertToMessageResponseOptimized(msg, userMap, profileMap, product))
             .collect(Collectors.toList());
     }
     
@@ -207,45 +264,93 @@ public class MessageService {
         // Fetch product details
         productRepository.findById(message.getProductId()).ifPresent(product -> {
             response.setProductTitle(product.getProductName());
+            response.setProductImageUrl(product.getProductImageUrl());
         });
         
         return response;
     }
     
     /**
-     * Build ConversationResponse from message and other user details
+     * Build ConversationResponse from message and other user details (optimized with cached data)
      */
-    private ConversationResponse buildConversationResponse(Long currentUserId, Message msg, Long otherUserId) {
+    private ConversationResponse buildConversationResponseOptimized(
+            Long currentUserId, Message msg, Long otherUserId,
+            Map<Long, AppUser> userMap, Map<Long, UserProfile> profileMap,
+            Map<Long, MarketPlaceProduct> productMap, Long unreadCount) {
+        
         ConversationResponse conv = new ConversationResponse();
         conv.setOtherUserId(otherUserId);
         conv.setProductId(msg.getProductId());
         conv.setLastMessage(msg.getContent());
         conv.setLastMessageTime(msg.getSentAt());
         
-        // Get other user details
-        appUserRepository.findById(otherUserId).ifPresent(user -> {
-            conv.setOtherUserEmail(user.getEmail());
-            userProfileRepository.findByUserId(user.getUserId()).ifPresent(profile -> {
+        // Get other user details from cached maps
+        AppUser otherUser = userMap.get(otherUserId);
+        if (otherUser != null) {
+            conv.setOtherUserEmail(otherUser.getEmail());
+            UserProfile profile = profileMap.get(otherUserId);
+            if (profile != null) {
                 conv.setOtherUserName(profile.getFirstName() + " " + profile.getLastName());
-            });
-        });
+            }
+        }
         
-        // Get product details
-        productRepository.findById(msg.getProductId()).ifPresent(product -> {
+        // Get product details from cached map
+        MarketPlaceProduct product = productMap.get(msg.getProductId());
+        if (product != null) {
             conv.setProductTitle(product.getProductName());
-        });
+            conv.setProductImageUrl(product.getProductImageUrl());
+        }
         
-        // Check for unread messages in this conversation
-        List<Message> conversationMessages = messageRepository.findConversation(
-            currentUserId, otherUserId, msg.getProductId());
-        
-        long unreadCount = conversationMessages.stream()
-            .filter(m -> m.getReceiverId().equals(currentUserId) && !m.getIsRead())
-            .count();
-        
+        // Set unread count (already calculated)
         conv.setUnreadCount(unreadCount);
         conv.setHasUnread(unreadCount > 0);
         
         return conv;
+    }
+    
+    /**
+     * Convert Message entity to MessageResponse DTO (optimized with cached data)
+     */
+    private MessageResponse convertToMessageResponseOptimized(
+            Message message, Map<Long, AppUser> userMap,
+            Map<Long, UserProfile> profileMap, MarketPlaceProduct product) {
+        
+        MessageResponse response = new MessageResponse();
+        response.setMessageId(message.getMessageId());
+        response.setSenderId(message.getSenderId());
+        response.setReceiverId(message.getReceiverId());
+        response.setProductId(message.getProductId());
+        response.setContent(message.getContent());
+        response.setSentAt(message.getSentAt());
+        response.setIsRead(message.getIsRead());
+        response.setReadAt(message.getReadAt());
+        
+        // Fetch sender details from cached maps
+        AppUser sender = userMap.get(message.getSenderId());
+        if (sender != null) {
+            response.setSenderEmail(sender.getEmail());
+            UserProfile senderProfile = profileMap.get(sender.getUserId());
+            if (senderProfile != null) {
+                response.setSenderName(senderProfile.getFirstName() + " " + senderProfile.getLastName());
+            }
+        }
+        
+        // Fetch receiver details from cached maps
+        AppUser receiver = userMap.get(message.getReceiverId());
+        if (receiver != null) {
+            response.setReceiverEmail(receiver.getEmail());
+            UserProfile receiverProfile = profileMap.get(receiver.getUserId());
+            if (receiverProfile != null) {
+                response.setReceiverName(receiverProfile.getFirstName() + " " + receiverProfile.getLastName());
+            }
+        }
+        
+        // Set product details
+        if (product != null) {
+            response.setProductTitle(product.getProductName());
+            response.setProductImageUrl(product.getProductImageUrl());
+        }
+        
+        return response;
     }
 }

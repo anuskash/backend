@@ -15,6 +15,7 @@ public class ConversationResponse {
     private String otherUserEmail;
     private Long productId;
     private String productTitle;
+    private String productImageUrl;  // Product thumbnail for inbox list
     private String lastMessage;
     private LocalDateTime lastMessageTime;
     private Boolean hasUnread;

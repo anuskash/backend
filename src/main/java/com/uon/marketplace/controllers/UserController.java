@@ -5,8 +5,6 @@ import java.util.List;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -19,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.uon.marketplace.dto.requests.MarketPlaceProductRequest;
@@ -28,8 +27,11 @@ import com.uon.marketplace.dto.responses.MyReviews;
 import com.uon.marketplace.dto.responses.ProductReviews;
 import com.uon.marketplace.entities.MarketPlaceProduct;
 import com.uon.marketplace.entities.UserProfile;
+import com.uon.marketplace.entities.SavedProduct;
 import com.uon.marketplace.services.ImageUploadService;
 import com.uon.marketplace.services.UserService;
+import com.uon.marketplace.services.SavedProductService;
+import com.uon.marketplace.services.NotificationService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -39,11 +41,14 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 public class UserController {
     private final UserService userService;
     private final ImageUploadService imageUploadService;
+    private final SavedProductService savedProductService;
+    private final NotificationService notificationService;
 
-    @Autowired
-    public UserController(UserService userService, ImageUploadService imageUploadService) {
+    public UserController(UserService userService, ImageUploadService imageUploadService, SavedProductService savedProductService, NotificationService notificationService) {
         this.userService = userService;
         this.imageUploadService = imageUploadService;
+        this.savedProductService = savedProductService;
+        this.notificationService = notificationService;
     }
 
     @GetMapping("/profile/{userId}")
@@ -67,43 +72,149 @@ public class UserController {
     }
 
     @PutMapping("/product/{productId}/status")
-    public ResponseEntity<MarketPlaceProduct> updateProductStatus(@PathVariable Long productId, @RequestParam String newStatus) {
-        return ResponseEntity.ok(userService.updateProductStatus(productId, newStatus));
+    public ResponseEntity<?> updateProductStatus(@PathVariable Long productId, 
+                                                 @RequestParam String newStatus,
+                                                 @RequestHeader("userId") Long userId) {
+        try {
+            MarketPlaceProduct product = userService.getProductById(productId);
+            if (!product.getSellerId().equals(userId)) {
+                Map<String, Object> error = new HashMap<>();
+                error.put("success", false);
+                error.put("error", "Unauthorized: You can only modify your own products");
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+            }
+            return ResponseEntity.ok(userService.updateProductStatus(productId, newStatus));
+        } catch (RuntimeException e) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(error);
+        }
     }
 
     @PutMapping("/product/{productId}/sold")
-    public ResponseEntity<MarketPlaceProduct> markProductAsSold(@PathVariable Long productId, @RequestParam Long buyerUserId) {
-        return ResponseEntity.ok(userService.markProductAsSold(productId, buyerUserId));
+    public ResponseEntity<?> markProductAsSold(@PathVariable Long productId, 
+                                               @RequestParam Long buyerUserId,
+                                               @RequestHeader("userId") Long userId) {
+        try {
+            MarketPlaceProduct product = userService.getProductById(productId);
+            if (!product.getSellerId().equals(userId)) {
+                Map<String, Object> error = new HashMap<>();
+                error.put("success", false);
+                error.put("error", "Unauthorized: You can only mark your own products as sold");
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+            }
+            return ResponseEntity.ok(userService.markProductAsSold(productId, buyerUserId));
+        } catch (RuntimeException e) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(error);
+        }
     }
 
     @DeleteMapping("/product/{productId}")
-    public ResponseEntity<Void> removeProduct(@PathVariable Long productId) {
-        userService.removeProduct(productId);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<?> removeProduct(@PathVariable Long productId,
+                                          @RequestHeader("userId") Long userId) {
+        try {
+            MarketPlaceProduct product = userService.getProductById(productId);
+            if (!product.getSellerId().equals(userId)) {
+                Map<String, Object> error = new HashMap<>();
+                error.put("success", false);
+                error.put("error", "Unauthorized: You can only delete your own products");
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+            }
+            userService.removeProduct(productId);
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Product deleted successfully");
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(error);
+        }
     }
 
     @PutMapping("/product/{productId}/unavailable")
-    public ResponseEntity<MarketPlaceProduct> markProductAsUnavailable(@PathVariable Long productId) {
-        return ResponseEntity.ok(userService.markProductAsUnavailable(productId));
+    public ResponseEntity<?> markProductAsUnavailable(@PathVariable Long productId,
+                                                      @RequestHeader("userId") Long userId) {
+        try {
+            MarketPlaceProduct product = userService.getProductById(productId);
+            if (!product.getSellerId().equals(userId)) {
+                Map<String, Object> error = new HashMap<>();
+                error.put("success", false);
+                error.put("error", "Unauthorized: You can only modify your own products");
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+            }
+            return ResponseEntity.ok(userService.markProductAsUnavailable(productId));
+        } catch (RuntimeException e) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(error);
+        }
     }
 
     @PutMapping("/product/{productId}/price")
-    public ResponseEntity<MarketPlaceProduct> updateProductPrice(@PathVariable Long productId, @RequestParam BigDecimal newPrice) {
-        return ResponseEntity.ok(userService.updateProductPrice(productId, newPrice));
+    public ResponseEntity<?> updateProductPrice(@PathVariable Long productId, 
+                                               @RequestParam BigDecimal newPrice,
+                                               @RequestHeader("userId") Long userId) {
+        try {
+            MarketPlaceProduct product = userService.getProductById(productId);
+            if (!product.getSellerId().equals(userId)) {
+                Map<String, Object> error = new HashMap<>();
+                error.put("success", false);
+                error.put("error", "Unauthorized: You can only modify your own products");
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+            }
+            return ResponseEntity.ok(userService.updateProductPrice(productId, newPrice));
+        } catch (RuntimeException e) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(error);
+        }
+    }
+
+    @PutMapping("/product/{productId}")
+    @Operation(summary = "Update product details", 
+               description = "Update product name, description, category, condition, price, and images. Only provided fields will be updated.")
+    public ResponseEntity<?> updateProduct(@PathVariable Long productId, 
+                                          @RequestBody com.uon.marketplace.dto.requests.UpdateProductRequest request,
+                                          @RequestHeader("userId") Long userId) {
+        try {
+            // Verify seller ownership
+            MarketPlaceProduct product = userService.getProductById(productId);
+            if (!product.getSellerId().equals(userId)) {
+                Map<String, Object> error = new HashMap<>();
+                error.put("success", false);
+                error.put("error", "Unauthorized: You can only edit your own products");
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+            }
+            
+            return ResponseEntity.ok(userService.updateProduct(productId, request));
+        } catch (RuntimeException e) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(error);
+        }
     }
 
     @GetMapping("/products/seller/{sellerId}")
-    public ResponseEntity<List<MarketPlaceProduct>> getProductsBySeller(@PathVariable Long sellerId) {
-        return ResponseEntity.ok(userService.getProductsBySeller(sellerId));
+    public ResponseEntity<java.util.List<com.uon.marketplace.dto.responses.MarketPlaceProductResponse>> getProductsBySeller(@PathVariable Long sellerId) {
+        return ResponseEntity.ok(userService.getDetailedProductsBySeller(sellerId));
     }
 
     @GetMapping("/products/buyer/{buyerId}")
-    public ResponseEntity<List<MarketPlaceProduct>> getProductsByBuyer(@PathVariable Long buyerId) {
-        return ResponseEntity.ok(userService.getProductsByBuyer(buyerId));
+    public ResponseEntity<java.util.List<com.uon.marketplace.dto.responses.MarketPlaceProductResponse>> getProductsByBuyer(@PathVariable Long buyerId) {
+        return ResponseEntity.ok(userService.getDetailedProductsByBuyer(buyerId));
     }
     @GetMapping("/products/available")
-    public ResponseEntity<List<MarketPlaceProduct>> getAllAvailableProducts() {
-        return ResponseEntity.ok(userService.getAllAvailableProducts());
+    public ResponseEntity<java.util.List<com.uon.marketplace.dto.responses.MarketPlaceProductResponse>> getAllAvailableProducts() {
+        return ResponseEntity.ok(userService.getAllDetailedAvailableProducts());
     }
     // --- Seller Review Endpoints ---
 
@@ -254,6 +365,7 @@ public class UserController {
         if (deleted) {
             // Also remove DB record for this image URL, if any
             userService.deleteProductImageByUrl(imageUrl);
+            // optional: notify seller about image deletion if needed later
             response.put("success", true);
             response.put("message", "Image deleted successfully");
             return ResponseEntity.ok(response);
@@ -292,13 +404,278 @@ public class UserController {
                description = "Attach or reorder images for an existing product. First URL becomes primary.")
     @PutMapping("/product/{productId}/images")
     public ResponseEntity<?> updateProductImages(@PathVariable Long productId,
-                                                 @RequestBody ProductImagesUpdateRequest request) {
-        userService.updateProductImages(productId, request.getImageUrls());
-        Map<String, Object> response = new HashMap<>();
-        response.put("productId", productId);
-        response.put("updated", true);
-        response.put("count", request.getImageUrls() != null ? request.getImageUrls().size() : 0);
-        return ResponseEntity.ok(response);
+                                                 @RequestBody ProductImagesUpdateRequest request,
+                                                                                                  @RequestHeader("userId") Long userId) {
+        try {
+            MarketPlaceProduct product = userService.getProductById(productId);
+            if (!product.getSellerId().equals(userId)) {
+                Map<String, Object> error = new HashMap<>();
+                error.put("success", false);
+                error.put("error", "Unauthorized: You can only modify your own products");
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+            }
+            userService.updateProductImages(productId, request.getImageUrls());
+            Map<String, Object> response = new HashMap<>();
+            response.put("productId", productId);
+            response.put("updated", true);
+            response.put("count", request.getImageUrls() != null ? request.getImageUrls().size() : 0);
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(error);
+        }
+    }
+
+    /**
+     * Submit a product report
+     */
+    @PostMapping("/reports/product")
+    @Operation(summary = "Report a product", description = "Submit a report for a product with reason and details")
+    public ResponseEntity<?> reportProduct(@RequestBody com.uon.marketplace.dto.requests.ProductReportRequest request,
+                                          @RequestHeader("userId") Long reporterId) {
+        try {
+            // Validate product exists
+            MarketPlaceProduct product = userService.getProductById(request.getProductId());
+            if (product == null) {
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", false);
+                response.put("message", "Product not found");
+                return ResponseEntity.badRequest().body(response);
+            }
+
+            // Check if user already reported this product
+            if (userService.hasUserReportedProduct(request.getProductId(), reporterId)) {
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", false);
+                response.put("message", "You have already reported this product");
+                return ResponseEntity.badRequest().body(response);
+            }
+
+            // Create report
+            com.uon.marketplace.entities.ProductReport report = new com.uon.marketplace.entities.ProductReport();
+            report.setProductId(request.getProductId());
+            report.setReporterId(reporterId);
+            report.setReportReason(request.getReportReason());
+            report.setReportDetails(request.getReportDetails());
+            report.setReportDate(java.time.LocalDateTime.now());
+            report.setStatus("pending");
+
+            userService.saveProductReport(report);
+
+            // Increment report count on product (null-safe)
+            product.incrementReportCount();
+            
+            // Auto-flag product if it reaches threshold (e.g., 3 reports)
+            if (product.getReportCount() >= 3 && Boolean.FALSE.equals(product.getFlagged())) {
+                product.setFlagged(true);
+                product.setFlagReason("Multiple user reports (" + product.getReportCount() + ")");
+                try {
+                    notificationService.create(
+                        product.getSellerId(),
+                        "PRODUCT_FLAGGED",
+                        "Product Flagged for Review: " + product.getProductName(),
+                        "Your product was automatically flagged for review due to multiple user reports (" + product.getReportCount() + ").",
+                        true
+                    );
+                } catch (Exception ex) {
+                    // non-fatal for reporting flow
+                }
+            }
+            
+            userService.saveProduct(product);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Product reported successfully");
+            response.put("reportId", report.getReportId());
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "Failed to submit report: " + e.getMessage());
+            return ResponseEntity.status(500).body(response);
+        }
+    }
+
+    // ==================== SAVED PRODUCTS ENDPOINTS ====================
+
+    /**
+     * Save a product to user's saved list
+     */
+    @PostMapping("/saved-products")
+    @Operation(summary = "Save product", description = "Add a product to user's saved/favorites list")
+    public ResponseEntity<?> saveProduct(@RequestParam Long productId,
+                                        @RequestHeader("userId") Long userId) {
+        try {
+            SavedProduct saved = savedProductService.saveProduct(userId, productId);
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Product saved successfully");
+            response.put("savedId", saved.getSavedId());
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+
+    /**
+     * Remove a product from user's saved list
+     */
+    @DeleteMapping("/saved-products/{productId}")
+    @Operation(summary = "Unsave product", description = "Remove a product from user's saved/favorites list")
+    public ResponseEntity<?> unsaveProduct(@PathVariable Long productId,
+                                          @RequestHeader("userId") Long userId) {
+        try {
+            savedProductService.unsaveProduct(userId, productId);
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Product removed from saved list");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "Failed to unsave product: " + e.getMessage());
+            return ResponseEntity.status(500).body(response);
+        }
+    }
+
+    /**
+     * Get user's saved products list
+     */
+    @GetMapping("/saved-products")
+    @Operation(summary = "Get saved products", description = "Retrieve user's saved/favorites product list")
+    public ResponseEntity<?> getSavedProducts(@RequestHeader("userId") Long userId) {
+        try {
+            List<SavedProduct> savedProducts = savedProductService.getSavedProductsByUser(userId);
+            List<com.uon.marketplace.dto.responses.SavedProductWithImageResponse> responseList = new java.util.ArrayList<>();
+            for (SavedProduct saved : savedProducts) {
+                String productImageUrl = null;
+                try {
+                    com.uon.marketplace.entities.MarketPlaceProduct product = userService.getProductById(saved.getProductId());
+                    productImageUrl = product != null ? product.getProductImageUrl() : null;
+                } catch (Exception ex) {
+                    productImageUrl = null;
+                }
+                responseList.add(new com.uon.marketplace.dto.responses.SavedProductWithImageResponse(
+                    saved.getSavedId(),
+                    saved.getUserId(),
+                    saved.getProductId(),
+                    saved.getSavedDate(),
+                    productImageUrl
+                ));
+            }
+            return ResponseEntity.ok(responseList);
+        } catch (Exception e) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "Failed to fetch saved products: " + e.getMessage());
+            return ResponseEntity.status(500).body(response);
+        }
+    }
+
+    /**
+     * Check if a product is saved by user
+     */
+    @GetMapping("/saved-products/check/{productId}")
+    @Operation(summary = "Check if product is saved", description = "Check if a specific product is in user's saved list")
+    public ResponseEntity<?> isProductSaved(@PathVariable Long productId,
+                                           @RequestHeader("userId") Long userId) {
+        try {
+            boolean isSaved = savedProductService.isProductSaved(userId, productId);
+            Map<String, Object> response = new HashMap<>();
+            response.put("productId", productId);
+            response.put("isSaved", isSaved);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "Failed to check saved status: " + e.getMessage());
+            return ResponseEntity.status(500).body(response);
+        }
+    }
+
+    // ==================== NOTIFICATIONS ENDPOINTS ====================
+
+    /**
+     * Get user's notifications
+     */
+    @GetMapping("/notifications")
+    @Operation(summary = "List notifications", description = "Retrieve user's notifications ordered by newest first")
+    public ResponseEntity<?> getNotifications(@RequestHeader("userId") Long userId) {
+        try {
+            return ResponseEntity.ok(notificationService.list(userId));
+        } catch (Exception e) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "Failed to fetch notifications: " + e.getMessage());
+            return ResponseEntity.status(500).body(response);
+        }
+    }
+
+    /**
+     * Get count of unread notifications
+     */
+    @GetMapping("/notifications/unread-count")
+    @Operation(summary = "Unread count", description = "Count user's unread notifications")
+    public ResponseEntity<?> getUnreadCount(@RequestHeader("userId") Long userId) {
+        try {
+            Map<String, Object> response = new HashMap<>();
+            response.put("count", notificationService.unreadCount(userId));
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "Failed to count unread notifications: " + e.getMessage());
+            return ResponseEntity.status(500).body(response);
+        }
+    }
+
+    /**
+     * Mark single notification as read
+     */
+    @PostMapping("/notifications/{notificationId}/read")
+    @Operation(summary = "Mark notification read", description = "Mark a specific notification as read")
+    public ResponseEntity<?> markNotificationRead(@PathVariable Long notificationId,
+                                                   @RequestHeader("userId") Long userId) {
+        try {
+            notificationService.markRead(notificationId, userId);
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Notification marked as read");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+
+    /**
+     * Mark all notifications as read
+     */
+    @PostMapping("/notifications/read-all")
+    @Operation(summary = "Mark all read", description = "Mark all user's notifications as read")
+    public ResponseEntity<?> markAllNotificationsRead(@RequestHeader("userId") Long userId) {
+        try {
+            int updated = notificationService.markAllRead(userId);
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "All notifications marked as read");
+            response.put("updated", updated);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "Failed to mark all read: " + e.getMessage());
+            return ResponseEntity.status(500).body(response);
+        }
     }
 
 }

@@ -161,8 +161,8 @@ public class AdminService {
         List<com.uon.marketplace.entities.BuyerReviews> buyerReviewsGiven = buyerReviewService.getReviewsByReviewerId(userId);
         List<com.uon.marketplace.entities.BuyerReviews> buyerReviewsReceived = buyerReviewService.getReviewsByBuyerId(userId);
 
-        SellerReviewResponse sellerReviewsGivenResponse = null;
-        SellerReviewResponse sellerReviewsReceivedResponse = null;
+        // SellerReviewResponse sellerReviewsGivenResponse = null;
+        // SellerReviewResponse sellerReviewsReceivedResponse = null;
         List<com.uon.marketplace.dto.responses.BuyerReviewResponse> buyerReviewsGivenResponse = new ArrayList<>();
         List<com.uon.marketplace.dto.responses.BuyerReviewResponse> buyerReviewsReceivedResponse = new ArrayList<>();
         List<SellerReviewResponse> sellerReviewsGivenResponseList = new ArrayList<>();

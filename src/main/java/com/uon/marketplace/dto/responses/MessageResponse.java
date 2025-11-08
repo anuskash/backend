@@ -19,6 +19,7 @@ public class MessageResponse {
     private String receiverEmail;
     private Long productId;
     private String productTitle;
+    private String productImageUrl;  // Product image for display in chat
     private String content;
     private LocalDateTime sentAt;
     private Boolean isRead;

@@ -28,6 +28,12 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
     );
     
     /**
+     * Find messages with IDs (used for efficient fetching)
+     */
+    @Query("SELECT m FROM Message m WHERE m.messageId IN :messageIds")
+    List<Message> findAllByMessageIdIn(@Param("messageIds") List<Long> messageIds);
+    
+    /**
      * Find all unique conversations for a user
      * Groups by product and other participant, returns latest message per conversation
      */

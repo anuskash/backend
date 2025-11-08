@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import com.uon.marketplace.dto.responses.AppUserResponse;
 import com.uon.marketplace.dto.responses.MarketPlaceUser;
+import com.uon.marketplace.dto.responses.MarketPlaceProductResponse;
 import com.uon.marketplace.dto.responses.SellerReviewResponse;
 import com.uon.marketplace.entities.MarketPlaceProduct;
 import com.uon.marketplace.entities.SellerReviews;
@@ -75,6 +76,44 @@ public class ResponseMapper {
             marketPlaceUser.setEmailVerified(appUserResponse.getAppUser().getEmailVerified());
             marketPlaceUser.setTwoFactorEnabled(appUserResponse.getAppUser().getTwoFactorEnabled());
         return marketPlaceUser;
+    }
+    
+    public MarketPlaceProductResponse toMarketPlaceProductResponse(MarketPlaceProduct product) {
+        if (product == null) return null;
+        MarketPlaceProductResponse response = new MarketPlaceProductResponse();
+        response.setProductId(product.getProductId());
+        response.setSellerId(product.getSellerId());
+        response.setSellerName(product.getSellerName());
+        response.setBuyerId(product.getBuyerId());
+        response.setBuyerName(product.getBuyerName());
+        response.setProductName(product.getProductName());
+        response.setCategory(product.getCategory());
+        response.setCondition(product.getCondition());
+        response.setProductDescription(product.getProductDescription());
+        response.setProductImageUrl(product.getProductImageUrl());
+        response.setPrice(product.getPrice());
+        response.setPostedDate(product.getPostedDate());
+        response.setLastUpdate(product.getLastUpdate());
+        response.setStatus(product.getStatus());
+        response.setFlagged(product.getFlagged());
+        response.setFlagReason(product.getFlagReason());
+        response.setReportCount(product.getReportCount());
+        // collect image URLs from product_images table
+        java.util.List<com.uon.marketplace.entities.ProductImage> images = marketPlaceProductService.getProductImages(product.getProductId());
+        java.util.List<String> imageUrls = new java.util.ArrayList<>();
+        for (com.uon.marketplace.entities.ProductImage img : images) {
+            imageUrls.add(img.getImageUrl());
+        }
+        response.setImageUrls(imageUrls);
+        return response;
+    }
+    
+    public java.util.List<MarketPlaceProductResponse> toMarketPlaceProductResponseList(java.util.List<MarketPlaceProduct> products) {
+        java.util.List<MarketPlaceProductResponse> list = new java.util.ArrayList<>();
+        for (MarketPlaceProduct p : products) {
+            list.add(toMarketPlaceProductResponse(p));
+        }
+        return list;
     }
     
 }

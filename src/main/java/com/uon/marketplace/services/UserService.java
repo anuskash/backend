@@ -16,6 +16,8 @@ import com.uon.marketplace.entities.AppUser;
 import com.uon.marketplace.entities.MarketPlaceProduct;
 import com.uon.marketplace.entities.SellerReviews;
 import com.uon.marketplace.entities.UserProfile;
+import com.uon.marketplace.entities.ProductReport;
+import com.uon.marketplace.repositories.ProductReportRepository;
 import com.uon.marketplace.utils.PasswordHashUtil;
 import com.uon.marketplace.utils.ResponseMapper;
 
@@ -27,14 +29,16 @@ public class UserService {
     private final BuyerReviewService buyerReviewService;
     private final AppUserService appUserService;
     private final ResponseMapper responseMapper;
+    private final ProductReportRepository productReportRepository;
 
-    public UserService(UserProfileService userProfileService, MarketPlaceProductService marketPlaceProductService, SellerReviewService sellerReviewService, BuyerReviewService buyerReviewService, AppUserService appUserService, ResponseMapper responseMapper) {
+    public UserService(UserProfileService userProfileService, MarketPlaceProductService marketPlaceProductService, SellerReviewService sellerReviewService, BuyerReviewService buyerReviewService, AppUserService appUserService, ResponseMapper responseMapper, ProductReportRepository productReportRepository) {
         this.userProfileService = userProfileService;
         this.marketPlaceProductService = marketPlaceProductService;
         this.sellerReviewService = sellerReviewService;
         this.buyerReviewService = buyerReviewService;
         this.appUserService = appUserService;
         this.responseMapper = responseMapper;
+        this.productReportRepository = productReportRepository;
     }
 
     public UserProfile getUserProfile(Long userId) {
@@ -109,6 +113,16 @@ public class UserService {
     public void deleteProductImageByUrl(String imageUrl) {
         marketPlaceProductService.deleteImageByUrl(imageUrl);
     }
+
+    public MarketPlaceProduct updateProduct(Long productId, com.uon.marketplace.dto.requests.UpdateProductRequest request) {
+        return marketPlaceProductService.updateProduct(productId, request);
+    }
+
+    public MarketPlaceProduct getProductById(Long productId) {
+        return marketPlaceProductService.getProductById(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found with ID: " + productId));
+    }
+
     //mark product unavailable
     public MarketPlaceProduct markProductAsUnavailable(Long productId) {
         return marketPlaceProductService.updateProductStatus(productId, "Unavailable");
@@ -121,14 +135,23 @@ public class UserService {
     public java.util.List<MarketPlaceProduct> getProductsBySeller(Long sellerId) {
         return marketPlaceProductService.getProductsBySellerId(sellerId);
     }
+    public java.util.List<com.uon.marketplace.dto.responses.MarketPlaceProductResponse> getDetailedProductsBySeller(Long sellerId) {
+        return responseMapper.toMarketPlaceProductResponseList(marketPlaceProductService.getProductsBySellerId(sellerId));
+    }
     //get all product of a buyer
     public java.util.List<MarketPlaceProduct> getProductsByBuyer(Long buyerId) {
         return marketPlaceProductService.getProductsByBuyerId(buyerId);
+    }
+    public java.util.List<com.uon.marketplace.dto.responses.MarketPlaceProductResponse> getDetailedProductsByBuyer(Long buyerId) {
+        return responseMapper.toMarketPlaceProductResponseList(marketPlaceProductService.getProductsByBuyerId(buyerId));
     }
 
     //get all available products
     public java.util.List<MarketPlaceProduct> getAllAvailableProducts() {
         return marketPlaceProductService.getAvailableProducts();
+    }
+    public java.util.List<com.uon.marketplace.dto.responses.MarketPlaceProductResponse> getAllDetailedAvailableProducts() {
+        return responseMapper.toMarketPlaceProductResponseList(marketPlaceProductService.getAvailableProducts());
     }
     public SellerReviewResponse converToSellerReviewResponse(SellerReviews review) {
         return responseMapper.converToSellerReviewResponse(review);
@@ -371,6 +394,19 @@ public class UserService {
         UserProfile userProfile = userProfileService.getProfileByUserId(userId);
         AppUserResponse appUserResponse = new AppUserResponse(appUser, userProfile);
         return responseMapper.convertAppUserReponseToMarketplaceuser(appUserResponse);
+    }
+
+    // Product Report methods
+    public boolean hasUserReportedProduct(Long productId, Long reporterId) {
+        return productReportRepository.existsByProductIdAndReporterId(productId, reporterId);
+    }
+
+    public ProductReport saveProductReport(ProductReport report) {
+        return productReportRepository.save(report);
+    }
+
+    public void saveProduct(MarketPlaceProduct product) {
+        marketPlaceProductService.saveProductDirectly(product);
     }
 
 }

@@ -7,8 +7,8 @@ import com.uon.marketplace.dto.responses.TwoFactorSetupResponse;
 import com.uon.marketplace.entities.AppUser;
 import com.uon.marketplace.repositories.AppUserRepository;
 import com.uon.marketplace.utils.PasswordHashUtil;
-import com.uon.marketplace.services.EmailVerificationService;
-import com.uon.marketplace.services.EmailService;
+// import com.uon.marketplace.services.EmailVerificationService;
+// import com.uon.marketplace.services.EmailService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

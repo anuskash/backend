@@ -55,5 +55,27 @@ public class MarketPlaceProduct {
 
 	@Column(name = "status", nullable = false)
 	private String status;
+
+	@Column(name = "flagged")
+	private Boolean flagged = false;
+
+	@Column(name = "flag_reason", length = 200)
+	private String flagReason;
+
+	@Column(name = "report_count")
+	private Integer reportCount = 0; // May be null for legacy rows; safeguard in getter
+
+	// ---- Null-safe accessors / helpers ----
+	public Integer getReportCount() {
+		return reportCount == null ? 0 : reportCount;
+	}
+
+	public void setReportCount(Integer reportCount) {
+		this.reportCount = reportCount;
+	}
+
+	public void incrementReportCount() {
+		this.reportCount = getReportCount() + 1;
+	}
 }
 

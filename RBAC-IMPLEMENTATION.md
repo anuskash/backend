@@ -1,18 +1,144 @@
 # Role-Based Access Control (RBAC) Implementation
 
 ## Overview
-This document describes the role-based access control system implemented for the UON Marketplace backend.
+This document describes the role-based access control system implemented for the UON Marketplace backend, including email verification, 2FA authentication, and account security features.
+
+## Authentication & Verification Flow
+
+### Registration Process
+1. **User registers** via `/auth/register` → Gets `USER` role
+2. **Email verification code sent** → User receives 6-digit code in email
+3. **User verifies email** via `/auth/verify-email` → Account becomes `email_verified: true`
+4. **User can now login** with email + password
+5. **2FA setup prompt** → User encouraged to enable TOTP for enhanced security
+
+### Login Security Layers
+1. **Standard login** → Email + password (if 2FA disabled)
+2. **2FA login** → Email + password + TOTP code (if 2FA enabled)
+3. **Failed login protection**:
+   - After **3 failed attempts** → Verification code sent to email
+   - User must enter verification code before trying again
+   - Options presented: Reset password OR Login with 2FA
+
+### Password Reset Flow
+**Initiated from login screen (Forgot Password):**
+1. User clicks "Forgot Password"
+2. System asks: **"Use 2FA code OR Reset via email link?"**
+   - Option A: Enter 2FA code → Login directly
+   - Option B: Email reset link → User clicks link → Set new password
+
+**Initiated from user settings (Change Password):**
+1. User requests password change
+2. **Email reset link sent** → User clicks link → Set new password
+3. Confirmation email sent after successful reset
+
+### Admin Verification vs Email Verification
+**Email Verification** (Automatic, Required):
+- Sent at registration
+- User verifies their email address
+- Required to login
+
+**Admin Verification** (Manual, Optional):
+- Admin can mark users as "verified" via `/admin/verify-user/{userId}`
+- Visual badge/status indicator
+- Indicates trusted seller/buyer (e.g., for business accounts)
+- **Does NOT affect login ability**
+
+## Security Features
+
+### 1. Email Verification (Required for All Users)
+**Endpoints:**
+- `POST /auth/register` → Sends verification code
+- `POST /auth/verify-email` → User enters code from email
+- `POST /auth/resend-verification` → Resend code if expired
+
+**Fields in `users` table:**
+- `email_verified` → `true` after successful verification
+- `email_verification_code` → 6-digit code
+- `email_verification_expires_at` → Code valid for 10 minutes
+
+**Logic:**
+- Registration → Code sent → User cannot login until verified
+- Verification code expires after 10 minutes
+- User can request new code via resend endpoint
+
+### 2. Two-Factor Authentication (Optional, Recommended)
+**Endpoints:**
+- `POST /auth/setup-2fa` → Generate QR code (Google Authenticator)
+- `POST /auth/verify-2fa` → Verify TOTP code to enable
+- `POST /auth/disable-2fa` → Disable 2FA (requires current TOTP code)
+- `POST /auth/login-2fa` → Login with email + password + TOTP
+
+**Fields in `users` table:**
+- `two_factor_enabled` → `true` when active
+- `two_factor_secret` → TOTP secret key
+- `two_factor_verified_at` → When user completed setup
+- `backup_codes` → Recovery codes (comma-separated)
+
+**Logic:**
+- User sets up 2FA after first login (prompted by frontend)
+- QR code scanned with authenticator app
+- User verifies with 6-digit TOTP code
+- Backup codes generated for account recovery
+
+### 3. Account Lockout (Failed Login Protection)
+**Endpoints:**
+- `POST /auth/unlock-account` → User enters unlock code sent to email
+- `POST /auth/send-unlock-code` → Request new unlock code
+
+**Fields in `users` table:**
+- `failed_login_attempts` → Counter (resets to 0 on success)
+- `account_locked_until` → Timestamp when lock expires
+- `unlock_code` → 6-digit code sent via email
+- `unlock_code_expires_at` → Code valid for 15 minutes
+
+**Logic:**
+- **3 failed login attempts** → Account locked for 30 minutes
+- Email sent with unlock code
+- User options:
+  1. Enter unlock code → Can try login again
+  2. Request password reset → Set new password
+  3. Use 2FA code (if enabled) → Bypass lockout
+
+### 4. Password Reset
+**Endpoints:**
+- `POST /auth/forgot-password` → Request reset link
+- `POST /auth/reset-password` → Set new password with token
+- `POST /auth/change-password` → Change password from settings (logged in)
+
+**Fields in `users` table:**
+- `password_reset_token` → UUID token in email link
+- `password_reset_expires_at` → Token valid for 1 hour
+
+**Logic:**
+- User clicks "Forgot Password" → Email sent with reset link
+- Link format: `http://marketplace.com/reset-password?token=UUID`
+- User clicks link → Frontend shows "Set New Password" form
+- User submits new password with token → Password updated
+- Token invalidated after use or expiration
+
+### 5. Admin User Verification (Trust Badge)
+**Endpoint:**
+- `PUT /admin/verify-user/{userId}` → Admin marks user as verified
+
+**Purpose:**
+- Visual trust indicator (verified seller/buyer badge)
+- Separate from email verification
+- Used for business accounts, trusted sellers, etc.
+- **Does not affect authentication** - purely for reputation
 
 ## Role Hierarchy
 
 ### 1. **USER** (Default Role)
 - Assigned to all new registrations via `/auth/register`
+- **Must verify email before first login**
 - **Permissions:**
   - Manage own profile (`/users/profile/**`)
   - Create, update, delete own products (`/users/product/**`)
   - Upload product images (`/users/product/upload-image`, `/users/product/upload-images`)
   - Write reviews for sellers and buyers (`/users/seller-review`, `/users/buyer-review`)
   - View own reviews and ratings (`/users/my-reviews`, `/users/average-rating`)
+  - Send/receive messages about products
 
 ### 2. **ADMIN**
 - Created by SUPER_ADMIN via `/admin/create-admin`
@@ -198,6 +324,84 @@ The `role` field now returns enum values as strings:
   },
   ...
 }
+```
+
+## Complete User Journey
+
+### New User Registration & Login
+```
+1. POST /auth/register
+   ↓ (email with 6-digit code sent)
+2. POST /auth/verify-email (enter code)
+   ↓ (email_verified = true)
+3. POST /auth/login (email + password)
+   ↓ (successful login)
+4. Frontend prompts: "Enable 2FA for extra security?"
+   ↓ (user clicks "Set up")
+5. POST /auth/setup-2fa (get QR code)
+   ↓ (scan with Google Authenticator)
+6. POST /auth/verify-2fa (enter TOTP code)
+   ✅ 2FA enabled! (backup codes saved)
+```
+
+### Forgot Password Flow
+```
+User on login screen → Clicks "Forgot Password"
+   ↓
+Frontend shows: "How do you want to recover?"
+   ├─ Option 1: "Use 2FA Code"
+   │    ↓
+   │  POST /auth/login-2fa (email + TOTP)
+   │    ✅ Logged in
+   │
+   └─ Option 2: "Email Reset Link"
+        ↓
+      POST /auth/forgot-password (email)
+        ↓ (email sent with token)
+      User clicks link → Frontend shows password form
+        ↓
+      POST /auth/reset-password (token + new password)
+        ✅ Password reset
+```
+
+### Failed Login Flow
+```
+1. POST /auth/login (wrong password)
+   ↓ failed_login_attempts = 1
+2. POST /auth/login (wrong password again)
+   ↓ failed_login_attempts = 2
+3. POST /auth/login (wrong password third time)
+   ↓ Account locked! (unlock code sent to email)
+   
+Frontend shows: "Account temporarily locked. Check your email."
+   ├─ Option 1: Enter unlock code
+   │    ↓
+   │  POST /auth/unlock-account (code)
+   │    ✅ Can try login again
+   │
+   ├─ Option 2: Reset password
+   │    ↓
+   │  POST /auth/forgot-password
+   │    ✅ Set new password
+   │
+   └─ Option 3: Use 2FA (if enabled)
+        ↓
+      POST /auth/login-2fa (email + TOTP)
+        ✅ Logged in (bypass lockout)
+```
+
+### Change Password from Settings
+```
+User logged in → Goes to Settings → "Change Password"
+   ↓
+Frontend: "We'll send you a secure link"
+   ↓
+POST /auth/change-password (userId)
+   ↓ (email sent with reset link)
+User clicks link → Sets new password
+   ↓
+POST /auth/reset-password (token + new password)
+   ✅ Password changed (confirmation email sent)
 ```
 
 ## Security Best Practices

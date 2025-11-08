@@ -30,4 +30,13 @@ public class BuyerReviews {
 
     @Column(name = "review_text", columnDefinition = "TEXT")
     private String reviewText;
+
+    @Column(name = "flagged")
+    private Boolean flagged = false;
+
+    @Column(name = "hidden")
+    private Boolean hidden = false;
+
+    @Column(name = "flag_reason", length = 200)
+    private String flagReason;
 }
