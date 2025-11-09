@@ -9,6 +9,7 @@ import com.uon.marketplace.dto.requests.SellerReviewRequest;
 import com.uon.marketplace.dto.responses.AppUserResponse;
 import com.uon.marketplace.dto.responses.AverageRating;
 import com.uon.marketplace.dto.responses.MarketPlaceUser;
+import com.uon.marketplace.dto.responses.ModerationResult;
 import com.uon.marketplace.dto.responses.MyReviews;
 import com.uon.marketplace.dto.responses.ProductReviews;
 import com.uon.marketplace.dto.responses.SellerReviewResponse;
@@ -408,5 +409,9 @@ public class UserService {
     public void saveProduct(MarketPlaceProduct product) {
         marketPlaceProductService.saveProductDirectly(product);
     }
-
+    //check moderation result for product request
+    public ModerationResult checkModerationResult(MarketPlaceProductRequest product) {
+        return marketPlaceProductService.checkModerationResult(product);
+    
+    }
 }
