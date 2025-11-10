@@ -1,5 +1,6 @@
 package com.uon.marketplace.services;
 
+import com.uon.marketplace.dto.requests.MarketPlaceProductRequest;
 import com.uon.marketplace.dto.responses.ModerationResult;
 import com.uon.marketplace.entities.MarketPlaceProduct;
 import com.uon.marketplace.entities.ProductImage;
@@ -253,5 +254,9 @@ public class MarketPlaceProductService {
     // Direct save method for internal use (e.g., updating report count, flags)
     public MarketPlaceProduct saveProductDirectly(MarketPlaceProduct product) {
         return productRepository.save(product);
+    }
+    // check moderation result for product request
+    public ModerationResult checkModerationResult(MarketPlaceProductRequest product) {
+        return moderationService.checkModerationResult(product);
     }
 }

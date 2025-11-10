@@ -1,5 +1,7 @@
 package com.uon.marketplace.services;
 
+import com.fasterxml.jackson.annotation.JsonCreator.Mode;
+import com.uon.marketplace.dto.requests.MarketPlaceProductRequest;
 import com.uon.marketplace.dto.responses.ModerationResult;
 import com.uon.marketplace.entities.MarketPlaceProduct;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,7 +27,12 @@ public class ContentModerationService {
         
         return moderateProductText(fullText, product.getCategory());
     }
-    
+    public ModerationResult checkModerationResult(MarketPlaceProductRequest product) {
+        String fullText = product.getProductName() + " " +
+                (product.getProductDescription() != null ? product.getProductDescription() : "");
+
+        return moderateProductText(fullText, product.getCategory());
+    }
     /**
      * Moderate product text (can be called before product is created)
      */

@@ -22,6 +22,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.uon.marketplace.dto.requests.MarketPlaceProductRequest;
 import com.uon.marketplace.dto.responses.MarketPlaceUser;
+import com.uon.marketplace.dto.responses.ModerationResult;
 import com.uon.marketplace.dto.requests.ProductImagesUpdateRequest;
 import com.uon.marketplace.dto.responses.MyReviews;
 import com.uon.marketplace.dto.responses.ProductReviews;
@@ -678,4 +679,9 @@ public class UserController {
         }
     }
 
+    @PostMapping("/test-moderation")
+    public ResponseEntity<ModerationResult> testModeration(@RequestBody MarketPlaceProductRequest product) {
+        ModerationResult result = userService.checkModerationResult(product);
+        return ResponseEntity.ok(result);
+    }   
 }
