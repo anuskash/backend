@@ -630,52 +630,8 @@ EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "/app.jar"]
 ```
 
-### Monitoring and Maintenance
-- Application monitoring with metrics
-- Database performance monitoring
-- Email delivery monitoring
-- Regular security audits
-- Backup and recovery procedures
-
----
-
-## Additional Documentation
-
-For detailed information on specific features, refer to the individual documentation files:
-
-- **[2FA Implementation](./2FA-IMPLEMENTATION.md)**: Complete two-factor authentication setup
-- **[API Endpoints](./API_ENDPOINTS.md)**: Comprehensive API reference
-- **[Class Diagram Reference](./CLASS-DIAGRAM-REFERENCE.md)**: System architecture overview
-- **[Frontend Integration Guide](./FRONTEND-INTEGRATION-GUIDE.md)**: Detailed integration instructions
-- **[Gmail SMTP Setup](./GMAIL-SMTP-SETUP.md)**: Email configuration guide
-- **[Messaging Integration](./MESSAGING-INTEGRATION-GUIDE.md)**: Messaging system implementation
-- **[Messaging Performance Fix](./MESSAGING-PERFORMANCE-FIX.md)**: Performance optimization details
-- **[Moderation System](./MODERATION_SYSTEM.md)**: Content moderation setup
-- **[Notification System](./NOTIFICATION_SYSTEM_SUMMARY.md)**: Notification implementation
-- **[Ownership Verification](./OWNERSHIP_VERIFICATION.md)**: Security enhancement details
-- **[Product Edit API](./PRODUCT_EDIT_API.md)**: Product editing functionality
-- **[RBAC Implementation](./RBAC-IMPLEMENTATION.md)**: Role-based access control
-- **[Test Moderation](./TEST_MODERATION.md)**: Testing guide for moderation features
-
----
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make changes
-4. Add tests for new functionality
-5. Submit a pull request
-
-## Support
-
 For questions or issues:
 - Refer to the Swagger documentation at `http://localhost:8080/swagger-ui/index.html`
 - Review the relevant documentation files
-- Contact the development team
 
 ---
-
-**Last Updated**: November 8, 2025  
-**Version**: 1.0  
-**Status**: Production Ready
