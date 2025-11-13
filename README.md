@@ -1,6 +1,6 @@
-# 🎓 UON Marketplace - Complete Backend System
+# UoN Marketplace - Backend System
 
-## 📋 Table of Contents
+## Table of Contents
 1. [Project Overview](#project-overview)
 2. [Quick Start Setup](#quick-start-setup)
 3. [Database Configuration](#database-configuration)
@@ -16,22 +16,22 @@
 
 ---
 
-## 🚀 Project Overview
+## Project Overview
 
-**UON Marketplace** is a comprehensive backend system for a university marketplace platform built with Spring Boot. It provides secure user authentication, product management, messaging, content moderation, and administrative tools.
+The UoN Marketplace backend system is a comprehensive Spring Boot application designed for a university marketplace platform. The system provides secure user authentication, product management, messaging capabilities, content moderation, and administrative tools.
 
-### 🎯 Key Features
-- ✅ **User Authentication** with email verification and optional 2FA
-- ✅ **Role-Based Access Control** (USER, ADMIN, SUPER_ADMIN)
-- ✅ **Product Management** with image uploads and content moderation
-- ✅ **Real-time Messaging** between buyers and sellers
-- ✅ **Content Moderation System** with automated filtering
-- ✅ **Review System** for buyers and sellers
-- ✅ **Admin Dashboard** with reporting and moderation tools
-- ✅ **Email Notifications** for all major events
-- ✅ **Security Features** including account lockout and password reset
+### Key Features
+- User authentication with email verification and optional two-factor authentication (2FA)
+- Role-based access control (USER, ADMIN, SUPER_ADMIN)
+- Product management with image uploads and content moderation
+- Real-time messaging between buyers and sellers
+- Automated content moderation system with keyword filtering
+- Review system for buyers and sellers
+- Administrative dashboard with reporting and moderation tools
+- Email notifications for major system events
+- Security features including account lockout and password reset
 
-### 🛠️ Technology Stack
+### Technology Stack
 - **Framework**: Spring Boot 3.5.7
 - **Database**: Microsoft SQL Server 2022
 - **Authentication**: JWT tokens with BCrypt password hashing
@@ -42,16 +42,17 @@
 
 ---
 
-## 🚀 Quick Start Setup
+## Quick Start Setup
 
 ### Prerequisites
-- Docker Desktop installed
+- Docker Desktop
 - VS Code with SQL Server (mssql) extension
-- Java 17+ for Spring Boot application
+- Java 17 or higher
 
-### 1. Database Setup (Docker)
+### 1. Database Setup Using Docker
 
-Create `docker-compose.yml`:
+Create a `docker-compose.yml` file in the project root directory:
+
 ```yaml
 services:
   mssql:
@@ -71,24 +72,28 @@ volumes:
   mssql-data:
 ```
 
-Start the database:
+Start the database container:
+
 ```bash
 docker compose up -d
 ```
 
-### 2. Initialize Database
+### 2. Database Initialization
+
+Execute the following commands to create the database, user, and grant permissions:
+
 ```bash
 # Create marketplace database
 docker exec -it mssql /opt/mssql-tools18/bin/sqlcmd \
   -S localhost -U sa -P 'Str0ng_P@ssw0rd!' -C \
   -Q "IF DB_ID('marketplace') IS NULL CREATE DATABASE marketplace;"
 
-# Create user
+# Create database user
 docker exec -it mssql /opt/mssql-tools18/bin/sqlcmd \
   -S localhost -U sa -P 'Str0ng_P@ssw0rd!' -C -d master \
   -Q "IF NOT EXISTS (SELECT * FROM sys.sql_logins WHERE name='market_user') CREATE LOGIN market_user WITH PASSWORD='MarketPass1234', DEFAULT_DATABASE=marketplace;"
 
-# Grant permissions
+# Grant permissions to the database user
 docker exec -it mssql /opt/mssql-tools18/bin/sqlcmd \
   -S localhost -U sa -P 'Str0ng_P@ssw0rd!' -C -d marketplace \
   -Q "IF NOT EXISTS (SELECT * FROM sys.database_principals WHERE name='market_user') CREATE USER market_user FOR LOGIN market_user; EXEC sp_addrolemember 'db_owner','market_user';"
@@ -96,7 +101,8 @@ docker exec -it mssql /opt/mssql-tools18/bin/sqlcmd \
 
 ### 3. Application Configuration
 
-Update `src/main/resources/application.properties`:
+Update the configuration file located at `src/main/resources/application.properties`:
+
 ```properties
 # Database Configuration
 spring.datasource.url=jdbc:sqlserver://localhost:1433;databaseName=marketplace;encrypt=true;trustServerCertificate=true
@@ -131,21 +137,24 @@ notifications.email.enabled=true
 ```
 
 ### 4. Run the Application
+
+Execute the following command to start the application:
+
 ```bash
 ./mvnw spring-boot:run
 ```
 
-Access Swagger Documentation: `http://localhost:8080/swagger-ui/index.html`
+The Swagger API documentation will be available at: `http://localhost:8080/swagger-ui/index.html`
 
 ---
 
-## 🔒 Authentication & Security
+## Authentication & Security
 
 ### Registration Flow
-1. **User Registration** → Email verification code sent
-2. **Email Verification** → Account activated
-3. **Optional 2FA Setup** → Enhanced security
-4. **Role Assignment** → USER (default), ADMIN, SUPER_ADMIN
+1. User registration with email verification code sent
+2. Email verification to activate account
+3. Optional two-factor authentication setup for enhanced security
+4. Role assignment: USER (default), ADMIN, or SUPER_ADMIN
 
 ### Security Features
 
@@ -165,9 +174,9 @@ POST /auth/login/v2           # Login with 2FA
 ```
 
 #### Account Security
-- **Account Lockout**: 3 failed attempts → 30-minute lock
-- **Password Reset**: Email-based token system
-- **Role-Based Access**: Three-tier permission system
+- **Account Lockout**: Three failed login attempts result in a 30-minute account lock
+- **Password Reset**: Email-based token system for secure password recovery
+- **Role-Based Access**: Three-tier permission system for access control
 
 ### Role Hierarchy
 | Role | Permissions |
@@ -178,11 +187,11 @@ POST /auth/login/v2           # Login with 2FA
 
 ---
 
-## 📚 API Documentation
+## API Documentation
 
 ### Base URL: `http://localhost:8080`
 
-### 🔐 Authentication Endpoints
+### Authentication Endpoints
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -194,7 +203,7 @@ POST /auth/login/v2           # Login with 2FA
 | POST | `/auth/forgot-password` | Request password reset |
 | POST | `/auth/reset-password` | Reset password with token |
 
-### 👤 User Management
+### User Management
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -203,7 +212,7 @@ POST /auth/login/v2           # Login with 2FA
 | GET | `/users/all/users` | Get all users |
 | GET | `/users/seller-info/{sellerId}` | Get seller information |
 
-### 📦 Product Management
+### Product Management
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -215,7 +224,7 @@ POST /auth/login/v2           # Login with 2FA
 | POST | `/users/product/upload-image` | Upload single image |
 | POST | `/users/product/upload-multiple-images` | Upload multiple images |
 
-### 💬 Messaging System
+### Messaging System
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -225,7 +234,7 @@ POST /auth/login/v2           # Login with 2FA
 | GET | `/messages/unread-count` | Get unread message count |
 | PUT | `/messages/{messageId}/mark-read` | Mark message as read |
 
-### ⭐ Review System
+### Review System
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -234,7 +243,7 @@ POST /auth/login/v2           # Login with 2FA
 | GET | `/users/reviews/seller/{sellerId}` | Get seller reviews |
 | GET | `/users/reviews/buyer/{buyerId}` | Get buyer reviews |
 
-### 👑 Admin Endpoints
+### Admin Endpoints
 
 | Method | Endpoint | Description | Role Required |
 |--------|----------|-------------|---------------|
@@ -245,7 +254,7 @@ POST /auth/login/v2           # Login with 2FA
 | POST | `/admin/create-admin` | Create admin | SUPER_ADMIN |
 | DELETE | `/admin/delete-user/{userId}` | Delete user | SUPER_ADMIN |
 
-### 🚩 Content Moderation
+### Content Moderation
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -256,7 +265,7 @@ POST /auth/login/v2           # Login with 2FA
 | GET | `/admin/prohibited-keywords` | Get prohibited keywords (ADMIN) |
 | POST | `/admin/prohibited-keywords` | Add prohibited keyword (ADMIN) |
 
-### 🔔 Notifications
+### Notifications
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -267,52 +276,52 @@ POST /auth/login/v2           # Login with 2FA
 
 ---
 
-## 🎯 Features Overview
+## Features Overview
 
-### User Authentication & Verification
-- **Email verification** required for all new accounts
-- **Two-factor authentication** using TOTP (Google Authenticator compatible)
-- **Account lockout** protection after failed login attempts
-- **Password reset** via secure email tokens
-- **JWT token-based** authentication
+### User Authentication and Verification
+- Email verification required for all new accounts
+- Two-factor authentication using TOTP (Google Authenticator compatible)
+- Account lockout protection after failed login attempts
+- Password reset via secure email tokens
+- JWT token-based authentication
 
 ### Product Management
-- **Multi-image upload** support (up to 10 images per product)
-- **Content moderation** with automatic keyword filtering
-- **Category and condition** classification
-- **Price management** with update tracking
-- **Product status** management (Available, Sold, Unavailable)
+- Multi-image upload support (up to 10 images per product)
+- Content moderation with automatic keyword filtering
+- Category and condition classification
+- Price management with update tracking
+- Product status management (Available, Sold, Unavailable)
 
 ### Messaging System
-- **Real-time messaging** between buyers and sellers
-- **Email notifications** for new messages
-- **Conversation management** with unread counts
-- **Product-specific messaging** threads
-- **Optimized queries** to prevent N+1 performance issues
+- Real-time messaging between buyers and sellers
+- Email notifications for new messages
+- Conversation management with unread counts
+- Product-specific messaging threads
+- Optimized queries to prevent N+1 performance issues
 
 ### Review System
-- **Dual review system** for both buyers and sellers
-- **Rating system** (1-5 stars)
-- **Written reviews** with moderation
-- **Average rating calculation** for user profiles
+- Dual review system for both buyers and sellers
+- Rating system (1-5 stars)
+- Written reviews with moderation
+- Average rating calculation for user profiles
 
 ### Content Moderation
-- **Automated keyword filtering** with severity levels
-- **Profanity detection** and flagging
-- **User reporting system** for inappropriate content
-- **Admin moderation queue** for manual review
-- **Auto-flagging** after multiple reports
+- Automated keyword filtering with severity levels
+- Profanity detection and flagging
+- User reporting system for inappropriate content
+- Administrative moderation queue for manual review
+- Auto-flagging after multiple reports
 
-### Admin Tools
-- **User management** (ban, unban, verify)
-- **Content moderation** dashboard
-- **Report review** system
-- **Prohibited keyword** management
-- **System monitoring** and audit logs
+### Administrative Tools
+- User management (ban, unban, verify)
+- Content moderation dashboard
+- Report review system
+- Prohibited keyword management
+- System monitoring and audit logs
 
 ---
 
-## 🏗️ System Architecture
+## System Architecture
 
 ### Entity Relationship Overview
 ```
@@ -327,31 +336,31 @@ MarketPlaceProduct (1) ←→ (*) ProductReport
 ```
 
 ### Service Layer Architecture
-- **AuthenticationService**: Login, 2FA, password management
-- **UserService**: Profile and product management
-- **MessageService**: Inter-user communication
-- **AdminService**: Administrative functions
-- **EmailService**: SMTP email delivery
-- **NotificationService**: In-app notifications
-- **ContentModerationService**: Automated content filtering
+- **AuthenticationService**: Handles login, 2FA, and password management
+- **UserService**: Manages profiles and product operations
+- **MessageService**: Facilitates inter-user communication
+- **AdminService**: Provides administrative functions
+- **EmailService**: Manages SMTP email delivery
+- **NotificationService**: Handles in-app notifications
+- **ContentModerationService**: Performs automated content filtering
 
 ### Security Configuration
-- **Spring Security** with method-level authorization
-- **CORS configuration** for frontend integration
-- **JWT token validation** (development mode: disabled for testing)
-- **BCrypt password hashing**
-- **Role-based endpoint protection**
+- Spring Security with method-level authorization
+- CORS configuration for frontend integration
+- JWT token validation (development mode: disabled for testing)
+- BCrypt password hashing
+- Role-based endpoint protection
 
 ---
 
-## 🛡️ Content Moderation
+## Content Moderation
 
 ### Automated Filtering System
 
 #### Prohibited Keywords Database
-- **Categories**: drugs, weapons, alcohol, tobacco, scam_indicators, profanity
-- **Severity Levels**: high (reject), medium (flag), low (warn)
-- **Auto-Actions**: reject creation, flag for review, warn user
+- **Categories**: Drugs, weapons, alcohol, tobacco, scam indicators, profanity
+- **Severity Levels**: High (reject), medium (flag), low (warn)
+- **Auto-Actions**: Reject creation, flag for review, warn user
 
 #### Pre-Seeded Keywords
 ```
@@ -370,11 +379,11 @@ SCAM INDICATORS (medium severity - flag):
 
 ### User Reporting System
 - Users can report inappropriate products
-- Auto-flagging after 3 reports
-- Admin moderation queue for review
-- Prevent duplicate reports from same user
+- Auto-flagging after three reports
+- Administrative moderation queue for review
+- Prevention of duplicate reports from same user
 
-### Admin Moderation Tools
+### Administrative Moderation Tools
 - Review flagged products
 - Process user reports
 - Manage prohibited keywords
@@ -382,7 +391,7 @@ SCAM INDICATORS (medium severity - flag):
 
 ---
 
-## 💻 Frontend Integration Guide
+## Frontend Integration Guide
 
 ### Authentication Flow
 ```typescript
@@ -478,20 +487,20 @@ const pollUnreadCount = setInterval(async () => {
 
 ---
 
-## ⚡ Performance Optimizations
+## Performance Optimizations
 
 ### Messaging System Optimization
-- **N+1 Query Problem**: Resolved with batch fetching
-- **Before**: 51 queries for 10 conversations
-- **After**: 5 queries for any number of conversations
-- **Batch entity fetching** for users, profiles, and products
-- **Single unread count query** instead of per-conversation queries
+- N+1 query problem resolved with batch fetching
+- Before optimization: 51 queries for 10 conversations
+- After optimization: 5 queries for any number of conversations
+- Batch entity fetching for users, profiles, and products
+- Single unread count query instead of per-conversation queries
 
 ### Database Optimizations
-- **Indexed foreign keys** for faster joins
-- **Optimized query patterns** in repositories
-- **Batch operations** for bulk data retrieval
-- **Proper relationship loading** strategies
+- Indexed foreign keys for faster joins
+- Optimized query patterns in repositories
+- Batch operations for bulk data retrieval
+- Proper relationship loading strategies
 
 ### Caching Strategy (Future Enhancement)
 - Redis caching for frequently accessed data
@@ -500,7 +509,7 @@ const pollUnreadCount = setInterval(async () => {
 
 ---
 
-## 🧪 Testing Guide
+## Testing Guide
 
 ### Manual Testing Scenarios
 
@@ -570,7 +579,7 @@ curl -X POST "http://localhost:8080/admin/reports/1/review?action=approved" \
 
 ---
 
-## 🚀 Deployment Guide
+## Deployment Guide
 
 ### Production Configuration
 
@@ -595,13 +604,13 @@ MAX_FILE_SIZE=10MB
 ```
 
 #### Security Hardening
-1. **Enable JWT authentication filter**
-2. **Update CORS configuration** for production domains
-3. **Use HTTPS** for all communications
-4. **Implement rate limiting** on sensitive endpoints
-5. **Add request logging** and monitoring
-6. **Set up database connection pooling**
-7. **Configure proper error handling** (don't expose stack traces)
+1. Enable JWT authentication filter
+2. Update CORS configuration for production domains
+3. Use HTTPS for all communications
+4. Implement rate limiting on sensitive endpoints
+5. Add request logging and monitoring
+6. Set up database connection pooling
+7. Configure proper error handling to avoid exposing stack traces
 
 #### Database Setup
 ```sql
@@ -622,15 +631,15 @@ ENTRYPOINT ["java", "-jar", "/app.jar"]
 ```
 
 ### Monitoring and Maintenance
-- **Application monitoring** with metrics
-- **Database performance monitoring**
-- **Email delivery monitoring**
-- **Regular security audits**
-- **Backup and recovery procedures**
+- Application monitoring with metrics
+- Database performance monitoring
+- Email delivery monitoring
+- Regular security audits
+- Backup and recovery procedures
 
 ---
 
-## 📄 Additional Documentation
+## Additional Documentation
 
 For detailed information on specific features, refer to the individual documentation files:
 
@@ -650,18 +659,18 @@ For detailed information on specific features, refer to the individual documenta
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch
-3. Make your changes
+3. Make changes
 4. Add tests for new functionality
 5. Submit a pull request
 
-## 📞 Support
+## Support
 
 For questions or issues:
-- Check the Swagger documentation at `http://localhost:8080/swagger-ui/index.html`
+- Refer to the Swagger documentation at `http://localhost:8080/swagger-ui/index.html`
 - Review the relevant documentation files
 - Contact the development team
 
