@@ -325,14 +325,14 @@ POST /auth/login/v2           # Login with 2FA
 
 ### Entity Relationship Overview
 ```
-AppUser (1) ←→ (1) UserProfile
-AppUser (1) ←→ (*) MarketPlaceProduct (as seller)
-AppUser (1) ←→ (*) Message (as sender/receiver)
-AppUser (1) ←→ (*) BuyerReviews
-AppUser (1) ←→ (*) SellerReviews
-MarketPlaceProduct (1) ←→ (*) ProductImage
-MarketPlaceProduct (1) ←→ (*) Message
-MarketPlaceProduct (1) ←→ (*) ProductReport
+AppUser (1) <-> (1) UserProfile
+AppUser (1) <-> (*) MarketPlaceProduct (as seller)
+AppUser (1) <-> (*) Message (as sender/receiver)
+AppUser (1) <-> (*) BuyerReviews
+AppUser (1) <-> (*) SellerReviews
+MarketPlaceProduct (1) <-> (*) ProductImage
+MarketPlaceProduct (1) <-> (*) Message
+MarketPlaceProduct (1) <-> (*) ProductReport
 ```
 
 ### Service Layer Architecture
